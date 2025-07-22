@@ -104,12 +104,13 @@ export default function CalendarPage() {
 
   // Handle event creation/update
   const handleSaveEvent = async () => {
-    if (!formData.title.trim() || !formData.start.trim() || !formData.end.trim()) {
-      toast.error("Please fill in all required fields")
+    if (!formData.title.trim()) {
+      toast.error("Please enter an event title")
       return
     }
 
-    if (new Date(formData.start) >= new Date(formData.end)) {
+    // Only validate dates if both are provided
+    if (formData.start.trim() && formData.end.trim() && new Date(formData.start) >= new Date(formData.end)) {
       toast.error("End time must be after start time")
       return
     }
@@ -122,8 +123,14 @@ export default function CalendarPage() {
           .split(",")
           .map((email) => email.trim())
           .filter(Boolean),
-        start: new Date(formData.start).toISOString(),
-        end: new Date(formData.end).toISOString(),
+      }
+
+      // Only add dates if they are provided
+      if (formData.start.trim()) {
+        eventData.start = new Date(formData.start).toISOString()
+      }
+      if (formData.end.trim()) {
+        eventData.end = new Date(formData.end).toISOString()
       }
 
       const url = isEditing ? `/api/calendar/events/${selectedEvent?._id}` : "/api/calendar/events"
@@ -489,7 +496,7 @@ export default function CalendarPage() {
             {/* Date and Time */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="start">Start *</Label>
+                <Label htmlFor="start">Start</Label>
                 <Input
                   id="start"
                   type="datetime-local"
@@ -498,7 +505,7 @@ export default function CalendarPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="end">End *</Label>
+                <Label htmlFor="end">End</Label>
                 <Input
                   id="end"
                   type="datetime-local"

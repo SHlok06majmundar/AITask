@@ -36,8 +36,8 @@ export async function POST(request: Request) {
 
     const { title, description, start, end, type, priority, attendees } = await request.json()
 
-    if (!title || !start || !end) {
-      return NextResponse.json({ error: "Title, start, and end are required" }, { status: 400 })
+    if (!title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
     const db = await getDatabase()
@@ -45,8 +45,8 @@ export async function POST(request: Request) {
     const event = {
       title,
       description: description || "",
-      start: new Date(start),
-      end: new Date(end),
+      start: start ? new Date(start) : new Date(),
+      end: end ? new Date(end) : new Date(Date.now() + 60 * 60 * 1000), // Default to 1 hour from now
       type: type || "meeting",
       priority: priority || "medium",
       attendees: attendees || [],
