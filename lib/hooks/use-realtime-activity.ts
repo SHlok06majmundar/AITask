@@ -2,44 +2,43 @@
 
 import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
-import type { ActivityLog } from "@/lib/mongodb"
+
+interface Activity {
+  _id: string
+  action: string
+  taskTitle: string
+  timestamp: string
+}
 
 export function useRealtimeActivity() {
-  const [activities, setActivities] = useState<ActivityLog[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
-  const { user } = useUser()
-
-  useEffect(() => {
-    if (!user) return
-
-    // Initial fetch
-    fetchActivities()
-
-    // Set up polling for real-time updates (every 3 seconds)
-    const interval = setInterval(fetchActivities, 3000)
-
-    return () => clearInterval(interval)
-  }, [user])
+  const { isSignedIn } = useUser()
 
   const fetchActivities = async () => {
+    if (!isSignedIn) return
+
     try {
-      if (!loading && activities.length === 0) setLoading(true)
-
       const response = await fetch("/api/activities")
-      if (!response.ok) throw new Error("Failed to fetch activities")
-
-      const data = await response.json()
-      setActivities(data)
-    } catch (err) {
-      console.error("Error fetching activities:", err)
+      if (response.ok) {
+        const data = await response.json()
+        setActivities(data)
+      }
+    } catch (error) {
+      console.error("Error fetching activities:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  return {
-    activities,
-    loading,
-    refetch: fetchActivities,
-  }
+  useEffect(() => {
+    fetchActivities()
+
+    // Poll for updates every 2 seconds
+    const interval = setInterval(fetchActivities, 2000)
+
+    return () => clearInterval(interval)
+  }, [isSignedIn])
+
+  return { activities, loading, refetch: fetchActivities }
 }

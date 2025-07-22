@@ -1,58 +1,81 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { getCollection } from "@/lib/mongodb"
+import { getDatabase } from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()
-    const tasksCollection = await getCollection("tasks")
+    const { title, description, priority, status, assignee } = body
 
-    const updates = {
-      ...body,
-      updatedAt: new Date(),
-    }
-
-    const result = await tasksCollection.findOneAndUpdate(
-      { _id: new ObjectId(params.id) },
-      { $set: updates },
-      { returnDocument: "after" },
+    const db = await getDatabase()
+    const result = await db.collection("tasks").updateOne(
+      { _id: new ObjectId(params.id), userId },
+      {
+        $set: {
+          title,
+          description,
+          priority,
+          status,
+          assignee,
+          updatedAt: new Date(),
+        },
+      },
     )
 
-    if (!result.value) {
+    if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
 
-    return NextResponse.json(result.value)
+    // Log activity
+    await db.collection("activities").insertOne({
+      userId,
+      action: "updated",
+      taskId: new ObjectId(params.id),
+      taskTitle: title,
+      timestamp: new Date(),
+    })
+
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error updating task:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tasksCollection = await getCollection("tasks")
+    const db = await getDatabase()
+    const task = await db.collection("tasks").findOne({ _id: new ObjectId(params.id), userId })
 
-    const result = await tasksCollection.deleteOne({ _id: new ObjectId(params.id) })
-
-    if (result.deletedCount === 0) {
+    if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ message: "Task deleted successfully" })
+    await db.collection("tasks").deleteOne({ _id: new ObjectId(params.id), userId })
+
+    // Log activity
+    await db.collection("activities").insertOne({
+      userId,
+      action: "deleted",
+      taskId: new ObjectId(params.id),
+      taskTitle: task.title,
+      timestamp: new Date(),
+    })
+
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error deleting task:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

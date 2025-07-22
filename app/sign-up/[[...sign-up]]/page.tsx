@@ -2,7 +2,7 @@ import { SignUp } from "@clerk/nextjs"
 
 export default function Page() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Join SyncSphere</h1>
@@ -12,7 +12,6 @@ export default function Page() {
           appearance={{
             elements: {
               formButtonPrimary: "bg-blue-600 hover:bg-blue-700 text-sm normal-case",
-              card: "shadow-lg",
             },
           }}
         />

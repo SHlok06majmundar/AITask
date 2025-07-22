@@ -1,32 +1,33 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
-import { generateText } from "ai"
+import { streamText } from "ai"
 import { google } from "@ai-sdk/google"
+import { auth } from "@clerk/nextjs/server"
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return new Response("Unauthorized", { status: 401 })
     }
 
-    const { message } = await request.json()
+    const { messages } = await req.json()
 
-    if (!message) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 })
-    }
-
-    const { text } = await generateText({
+    const result = streamText({
       model: google("gemini-1.5-flash"),
-      system: `You are a helpful AI assistant for SyncSphere, a task management platform. 
-      Help users with productivity tips, task organization, time management, and team collaboration. 
-      Keep responses concise and actionable. Focus on practical advice for remote teams.`,
-      prompt: message,
+      system: `You are an AI assistant for SyncSphere, a task management platform. 
+      Help users with:
+      - Task organization and prioritization
+      - Productivity tips and strategies
+      - Team collaboration advice
+      - Time management techniques
+      - Project planning guidance
+      
+      Keep responses helpful, concise, and focused on productivity and task management.`,
+      messages,
     })
 
-    return NextResponse.json({ response: text })
+    return result.toDataStreamResponse()
   } catch (error) {
-    console.error("AI Chat Error:", error)
-    return NextResponse.json({ error: "Failed to generate response" }, { status: 500 })
+    console.error("Error in AI chat:", error)
+    return new Response("Internal Server Error", { status: 500 })
   }
 }

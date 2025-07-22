@@ -1,15 +1,15 @@
 import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import { Inter } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: "SyncSphere - Smart Collaboration, Zero Chaos",
-  description: "AI-powered task management platform for remote teams",
+export const metadata = {
+  title: "SyncSphere - AI-Powered Task Management",
+  description: "Streamline your team's productivity with intelligent task management",
     generator: 'v0.dev'
 }
 
@@ -24,6 +24,7 @@ export default function RootLayout({
         <body className={inter.className}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             {children}
+            <Toaster />
           </ThemeProvider>
         </body>
       </html>
