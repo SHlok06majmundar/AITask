@@ -10,27 +10,40 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const db = await getDatabase()
+    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(params.id) })
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 })
+    }
+
+    // Check if user has access to this task
+    if (task.assignedTo !== userId && task.createdBy !== userId && !task.teamMembers?.includes(userId)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
     const body = await request.json()
     const { comment } = body
 
-    const db = await getDatabase()
+    if (!comment || !comment.trim()) {
+      return NextResponse.json({ error: "Comment cannot be empty" }, { status: 400 })
+    }
 
-    // Get user details
-    const user = await db.collection("profiles").findOne({ userId })
+    const userProfile = await db.collection("profiles").findOne({ userId })
 
-    const commentData = {
-      _id: new ObjectId(),
+    const newComment = {
+      _id: new ObjectId().toString(),
       userId,
-      userName: user ? `${user.firstName} ${user.lastName}` : "Unknown",
-      userImage: user?.imageUrl || "/placeholder.svg",
-      comment,
-      createdAt: new Date(),
+      userName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : "Unknown User",
+      userImage: userProfile?.imageUrl || "/placeholder.svg",
+      comment: comment.trim(),
+      createdAt: new Date().toISOString(),
     }
 
     const result = await db.collection("team_tasks").updateOne(
       { _id: new ObjectId(params.id) },
       {
-        $push: { comments: commentData },
+        $push: { comments: newComment },
         $set: { updatedAt: new Date() },
       },
     )
@@ -39,24 +52,45 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
 
-    // Get task details for notification
-    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(params.id) })
-
-    // Notify assigned user if different from commenter
-    if (task && task.assignedTo !== userId) {
+    // Create notification for task assignee (if not the commenter)
+    if (task.assignedTo !== userId) {
       await db.collection("notifications").insertOne({
         userId: task.assignedTo,
         type: "task_comment",
-        title: "New Comment on Task",
-        message: `${commentData.userName} commented on: ${task.title}`,
-        taskId: new ObjectId(params.id),
+        title: "New Comment",
+        message: `${newComment.userName} commented on: ${task.title}`,
+        taskId: params.id,
         fromUserId: userId,
         read: false,
         createdAt: new Date(),
       })
     }
 
-    return NextResponse.json(commentData)
+    // Create notification for task creator (if not the commenter and not the assignee)
+    if (task.createdBy !== userId && task.createdBy !== task.assignedTo) {
+      await db.collection("notifications").insertOne({
+        userId: task.createdBy,
+        type: "task_comment",
+        title: "New Comment",
+        message: `${newComment.userName} commented on: ${task.title}`,
+        taskId: params.id,
+        fromUserId: userId,
+        read: false,
+        createdAt: new Date(),
+      })
+    }
+
+    // Log activity
+    await db.collection("activities").insertOne({
+      userId,
+      action: "comment_added",
+      taskId: params.id,
+      taskTitle: task.title,
+      details: { comment: comment.trim() },
+      timestamp: new Date(),
+    })
+
+    return NextResponse.json(newComment)
   } catch (error) {
     console.error("Error adding comment:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

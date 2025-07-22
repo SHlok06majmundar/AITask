@@ -10,37 +10,66 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { action, duration } = body // action: 'start' | 'stop' | 'log'
-
     const db = await getDatabase()
+    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(params.id) })
 
-    const user = await db.collection("profiles").findOne({ userId })
-
-    if (action === "log" && duration) {
-      // Log time manually
-      const timeSession = {
-        _id: new ObjectId(),
-        userId,
-        userName: user ? `${user.firstName} ${user.lastName}` : "Unknown",
-        duration, // in minutes
-        description: body.description || "",
-        date: new Date(),
-      }
-
-      await db.collection("team_tasks").updateOne(
-        { _id: new ObjectId(params.id) },
-        {
-          $push: { "timeTracking.sessions": timeSession },
-          $inc: { "timeTracking.actual": duration },
-          $set: { updatedAt: new Date() },
-        },
-      )
-
-      return NextResponse.json(timeSession)
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true })
+    // Check if user has access to this task
+    if (task.assignedTo !== userId && task.createdBy !== userId && !task.teamMembers?.includes(userId)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { action, duration, description } = body
+
+    if (action !== "log" || !duration || duration <= 0) {
+      return NextResponse.json({ error: "Invalid time log data" }, { status: 400 })
+    }
+
+    const userProfile = await db.collection("profiles").findOne({ userId })
+
+    const timeSession = {
+      _id: new ObjectId().toString(),
+      userId,
+      userName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : "Unknown User",
+      duration: Number(duration),
+      description: description || "",
+      date: new Date().toISOString(),
+    }
+
+    // Update task with new time session
+    const currentTimeTracking = task.timeTracking || { estimated: 0, actual: 0, sessions: [] }
+    const newActualTime = currentTimeTracking.actual + Number(duration)
+
+    const result = await db.collection("team_tasks").updateOne(
+      { _id: new ObjectId(params.id) },
+      {
+        $set: {
+          "timeTracking.actual": newActualTime,
+          updatedAt: new Date(),
+        },
+        $push: { "timeTracking.sessions": timeSession },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 })
+    }
+
+    // Log activity
+    await db.collection("activities").insertOne({
+      userId,
+      action: "time_logged",
+      taskId: params.id,
+      taskTitle: task.title,
+      details: { duration: Number(duration), description },
+      timestamp: new Date(),
+    })
+
+    return NextResponse.json({ success: true, timeSession })
   } catch (error) {
     console.error("Error logging time:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

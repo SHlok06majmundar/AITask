@@ -12,7 +12,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Calendar, Clock, MessageSquare, Timer, CheckCircle2, Target, TrendingUp } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Plus,
+  Calendar,
+  Clock,
+  MessageSquare,
+  Timer,
+  CheckCircle2,
+  Target,
+  TrendingUp,
+  Shield,
+  Lock,
+} from "lucide-react"
 import { toast } from "sonner"
 
 interface TeamTask {
@@ -68,6 +80,7 @@ export function TeamTaskBoard() {
   const { user } = useUser()
   const [tasks, setTasks] = useState<TeamTask[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [currentUserRole, setCurrentUserRole] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [selectedTask, setSelectedTask] = useState<TeamTask | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -101,6 +114,12 @@ export function TeamTaskBoard() {
       if (response.ok) {
         const data = await response.json()
         setTeamMembers(data)
+
+        // Find current user's role
+        const currentMember = data.find((member: TeamMember) => member.userId === user?.id)
+        if (currentMember) {
+          setCurrentUserRole(currentMember.role)
+        }
       }
     } catch (error) {
       console.error("Error fetching team members:", error)
@@ -120,6 +139,8 @@ export function TeamTaskBoard() {
 
     return () => clearInterval(interval)
   }, [])
+
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "owner"
 
   const createTask = async () => {
     if (!newTask.title.trim() || !newTask.assignedTo) {
@@ -153,6 +174,9 @@ export function TeamTaskBoard() {
         })
         setIsCreateDialogOpen(false)
         fetchTasks()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Failed to create task")
       }
     } catch (error) {
       toast.error("Failed to create task")
@@ -167,12 +191,15 @@ export function TeamTaskBoard() {
       const response = await fetch(`/api/team/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...task, status }),
+        body: JSON.stringify({ status }),
       })
 
       if (response.ok) {
         toast.success("Task status updated!")
         fetchTasks()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Failed to update task")
       }
     } catch (error) {
       toast.error("Failed to update task")
@@ -181,18 +208,18 @@ export function TeamTaskBoard() {
 
   const updateProgress = async (taskId: string, progress: number) => {
     try {
-      const task = tasks.find((t) => t._id === taskId)
-      if (!task) return
-
       const response = await fetch(`/api/team/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...task, progress }),
+        body: JSON.stringify({ progress }),
       })
 
       if (response.ok) {
         toast.success("Progress updated!")
         fetchTasks()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Failed to update progress")
       }
     } catch (error) {
       toast.error("Failed to update progress")
@@ -213,6 +240,9 @@ export function TeamTaskBoard() {
         setNewComment("")
         fetchTasks()
         toast.success("Comment added!")
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Failed to add comment")
       }
     } catch (error) {
       toast.error("Failed to add comment")
@@ -240,6 +270,9 @@ export function TeamTaskBoard() {
         setTimeLog({ duration: "", description: "" })
         fetchTasks()
         toast.success("Time logged successfully!")
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Failed to log time")
       }
     } catch (error) {
       toast.error("Failed to log time")
@@ -366,111 +399,127 @@ export function TeamTaskBoard() {
           <p className="text-muted-foreground">Collaborate and track progress together</p>
         </div>
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Assign Task
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create Team Task</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Title *</label>
-                <Input
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  placeholder="Enter task title..."
-                />
-              </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="flex items-center gap-2">
+            <Shield className="h-3 w-3" />
+            {currentUserRole}
+          </Badge>
 
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <Textarea
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  placeholder="Describe the task..."
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Assign To *</label>
-                <Select
-                  value={newTask.assignedTo}
-                  onValueChange={(value) => setNewTask({ ...newTask, assignedTo: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select team member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teamMembers.map((member) => (
-                      <SelectItem key={member.userId} value={member.userId}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarImage src={member.imageUrl || "/placeholder.svg"} />
-                            <AvatarFallback>{member.firstName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          {member.firstName} {member.lastName}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Priority</label>
-                  <Select
-                    value={newTask.priority}
-                    onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Due Date</label>
-                  <Input
-                    type="date"
-                    value={newTask.dueDate}
-                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Tags</label>
-                <Input
-                  value={newTask.tags}
-                  onChange={(e) => setNewTask({ ...newTask, tags: e.target.value })}
-                  placeholder="frontend, urgent, bug (comma separated)"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button onClick={createTask} className="flex-1">
-                  Create Task
+          {isAdmin ? (
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Assign Task
                 </Button>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Create Team Task</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Title *</label>
+                    <Input
+                      value={newTask.title}
+                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                      placeholder="Enter task title..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Description</label>
+                    <Textarea
+                      value={newTask.description}
+                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                      placeholder="Describe the task..."
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Assign To *</label>
+                    <Select
+                      value={newTask.assignedTo}
+                      onValueChange={(value) => setNewTask({ ...newTask, assignedTo: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teamMembers.map((member) => (
+                          <SelectItem key={member.userId} value={member.userId}>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={member.imageUrl || "/placeholder.svg"} />
+                                <AvatarFallback>{member.firstName.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              {member.firstName} {member.lastName}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Priority</label>
+                      <Select
+                        value={newTask.priority}
+                        onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Due Date</label>
+                      <Input
+                        type="date"
+                        value={newTask.dueDate}
+                        onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Tags</label>
+                    <Input
+                      value={newTask.tags}
+                      onChange={(e) => setNewTask({ ...newTask, tags: e.target.value })}
+                      placeholder="frontend, urgent, bug (comma separated)"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={createTask} className="flex-1">
+                      Create Task
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Alert className="max-w-sm">
+              <Lock className="h-4 w-4" />
+              <AlertDescription>
+                Only admins can create tasks. You can view, edit, and comment on existing tasks.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       </div>
 
       {/* Task Board */}
@@ -560,6 +609,12 @@ export function TeamTaskBoard() {
               <DialogTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5" />
                 {selectedTask.title}
+                {!isAdmin && (
+                  <Badge variant="outline" className="ml-2">
+                    <Lock className="h-3 w-3 mr-1" />
+                    View/Edit Only
+                  </Badge>
+                )}
               </DialogTitle>
             </DialogHeader>
 

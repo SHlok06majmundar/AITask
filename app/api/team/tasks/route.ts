@@ -11,7 +11,7 @@ export async function GET() {
 
     const db = await getDatabase()
 
-    // Get tasks where user is assigned or is the creator
+    // Get tasks where user is assigned or is the creator or is a team member
     const tasks = await db
       .collection("team_tasks")
       .find({
@@ -50,10 +50,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // Check if user is admin or owner
+    const db = await getDatabase()
+    const userProfile = await db.collection("profiles").findOne({ userId })
+
+    if (!userProfile) {
+      return NextResponse.json({ error: "User profile not found" }, { status: 404 })
+    }
+
+    // Check user's role in team
+    const teamMember = await db.collection("team_members").findOne({ userId })
+
+    if (!teamMember || (teamMember.role !== "admin" && teamMember.role !== "owner")) {
+      return NextResponse.json(
+        {
+          error: "Access denied. Only admins and owners can create tasks.",
+        },
+        { status: 403 },
+      )
+    }
+
     const body = await request.json()
     const { title, description, assignedTo, priority, dueDate, teamId, tags } = body
-
-    const db = await getDatabase()
 
     const task = {
       title,
