@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Users, UserPlus, Mail, Crown, Shield, User, MoreHorizontal, Check, X } from "lucide-react"
+import { Users, UserPlus, Mail, Crown, Shield, User, X, Copy } from "lucide-react"
 import { toast } from "sonner"
+import { LoadingSpinner } from "@/components/loading-spinner"
 
 interface TeamMember {
   _id: string
@@ -42,6 +43,7 @@ interface TeamInvite {
   invitedBy: string
   invitedAt: string
   status: "pending" | "accepted" | "declined"
+  inviteToken: string
 }
 
 export default function TeamPage() {
@@ -52,6 +54,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member")
   const [showInviteDialog, setShowInviteDialog] = useState(false)
+  const [sendingInvite, setSendingInvite] = useState(false)
 
   const fetchTeamData = async () => {
     try {
@@ -75,15 +78,18 @@ export default function TeamPage() {
 
   useEffect(() => {
     fetchTeamData()
-
-    // Poll for updates every 5 seconds
+    // Real-time polling every 5 seconds
     const interval = setInterval(fetchTeamData, 5000)
     return () => clearInterval(interval)
   }, [])
 
   const handleInviteMember = async () => {
-    if (!inviteEmail.trim()) return
+    if (!inviteEmail.trim()) {
+      toast.error("Please enter an email address")
+      return
+    }
 
+    setSendingInvite(true)
     try {
       const response = await fetch("/api/team/invite", {
         method: "POST",
@@ -94,41 +100,38 @@ export default function TeamPage() {
         }),
       })
 
+      const data = await response.json()
+
       if (response.ok) {
         toast.success("Invitation sent successfully!")
         setInviteEmail("")
         setInviteRole("member")
         setShowInviteDialog(false)
         fetchTeamData()
+
+        // Show the invite link
+        const inviteLink = `${window.location.origin}/team/join/${data.inviteToken}`
+        navigator.clipboard.writeText(inviteLink)
+        toast.success("Invite link copied to clipboard!")
       } else {
-        const error = await response.json()
-        toast.error(error.message || "Failed to send invitation")
+        toast.error(data.message || "Failed to send invitation")
       }
     } catch (error) {
       toast.error("Failed to send invitation")
+    } finally {
+      setSendingInvite(false)
     }
   }
 
-  const handleRespondToInvite = async (inviteId: string, action: "accept" | "decline") => {
-    try {
-      const response = await fetch(`/api/team/invites/${inviteId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      })
-
-      if (response.ok) {
-        toast.success(`Invitation ${action}ed successfully!`)
-        fetchTeamData()
-      } else {
-        toast.error(`Failed to ${action} invitation`)
-      }
-    } catch (error) {
-      toast.error(`Failed to ${action} invitation`)
-    }
+  const copyInviteLink = (token: string) => {
+    const inviteLink = `${window.location.origin}/team/join/${token}`
+    navigator.clipboard.writeText(inviteLink)
+    toast.success("Invite link copied to clipboard!")
   }
 
   const handleRemoveMember = async (memberId: string) => {
+    if (!confirm("Are you sure you want to remove this member?")) return
+
     try {
       const response = await fetch(`/api/team/members/${memberId}`, {
         method: "DELETE",
@@ -142,6 +145,23 @@ export default function TeamPage() {
       }
     } catch (error) {
       toast.error("Failed to remove member")
+    }
+  }
+
+  const handleCancelInvite = async (inviteId: string) => {
+    try {
+      const response = await fetch(`/api/team/invites/${inviteId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        toast.success("Invitation cancelled!")
+        fetchTeamData()
+      } else {
+        toast.error("Failed to cancel invitation")
+      }
+    } catch (error) {
+      toast.error("Failed to cancel invitation")
     }
   }
 
@@ -172,7 +192,7 @@ export default function TeamPage() {
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         <Sidebar />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <LoadingSpinner />
         </div>
       </div>
     )
@@ -200,7 +220,7 @@ export default function TeamPage() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Invite Team Member</DialogTitle>
-                    <DialogDescription>Send an invitation to join your team</DialogDescription>
+                    <DialogDescription>Send an invitation link to join your team</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
@@ -225,8 +245,8 @@ export default function TeamPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={handleInviteMember} className="w-full">
-                      Send Invitation
+                    <Button onClick={handleInviteMember} className="w-full" disabled={sendingInvite}>
+                      {sendingInvite ? "Sending..." : "Send Invitation"}
                     </Button>
                   </div>
                 </DialogContent>
@@ -253,51 +273,66 @@ export default function TeamPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {teamMembers.map((member) => (
-                        <div
-                          key={member._id}
-                          className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
-                        >
-                          <div className="flex items-center space-x-4">
-                            <Avatar>
-                              <AvatarImage src={member.imageUrl || "/placeholder.svg"} />
-                              <AvatarFallback>
-                                {member.firstName?.[0]}
-                                {member.lastName?.[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <h3 className="font-medium text-gray-900 dark:text-white">
-                                  {member.firstName} {member.lastName}
-                                </h3>
-                                {member.userId === user?.id && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    You
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-2">
-                              {getRoleIcon(member.role)}
-                              <Badge className={getRoleBadgeColor(member.role)}>{member.role}</Badge>
-                            </div>
-                            {member.status === "pending" && (
-                              <Badge variant="outline" className="text-yellow-600">
-                                Pending
-                              </Badge>
-                            )}
-                            {member.userId !== user?.id && (
-                              <Button variant="ghost" size="sm" onClick={() => handleRemoveMember(member._id)}>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
+                      {teamMembers.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                            No team members yet
+                          </h3>
+                          <p className="text-gray-500 dark:text-gray-400">Invite team members to get started</p>
                         </div>
-                      ))}
+                      ) : (
+                        teamMembers.map((member) => (
+                          <div
+                            key={member._id}
+                            className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                          >
+                            <div className="flex items-center space-x-4">
+                              <Avatar>
+                                <AvatarImage src={member.imageUrl || "/placeholder.svg"} />
+                                <AvatarFallback>
+                                  {member.firstName?.[0]}
+                                  {member.lastName?.[0]}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <h3 className="font-medium text-gray-900 dark:text-white">
+                                    {member.firstName} {member.lastName}
+                                  </h3>
+                                  {member.userId === user?.id && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      You
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <div className="flex items-center space-x-2">
+                                {getRoleIcon(member.role)}
+                                <Badge className={getRoleBadgeColor(member.role)}>{member.role}</Badge>
+                              </div>
+                              {member.status === "pending" && (
+                                <Badge variant="outline" className="text-yellow-600">
+                                  Pending
+                                </Badge>
+                              )}
+                              {member.userId !== user?.id && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveMember(member._id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -345,24 +380,19 @@ export default function TeamPage() {
                               >
                                 {invite.status}
                               </Badge>
-                              {invite.status === "pending" && (
-                                <div className="flex space-x-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleRespondToInvite(invite._id, "accept")}
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleRespondToInvite(invite._id, "decline")}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              )}
+                              <div className="flex space-x-2">
+                                <Button size="sm" variant="outline" onClick={() => copyInviteLink(invite.inviteToken)}>
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelInvite(invite._id)}
+                                  className="text-red-600"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getDatabase } from "@/lib/mongodb"
 
-export async function GET() {
+export async function PUT() {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -10,11 +10,13 @@ export async function GET() {
     }
 
     const db = await getDatabase()
-    const members = await db.collection("team_members").find({}).toArray()
+    await db
+      .collection("notifications")
+      .updateMany({ userId, read: false }, { $set: { read: true, updatedAt: new Date() } })
 
-    return NextResponse.json(members)
+    return NextResponse.json({ message: "All notifications marked as read" })
   } catch (error) {
-    console.error("Error fetching team members:", error)
+    console.error("Error marking all notifications as read:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

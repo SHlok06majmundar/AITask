@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getDatabase } from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 
-export async function GET() {
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -10,11 +11,14 @@ export async function GET() {
     }
 
     const db = await getDatabase()
-    const members = await db.collection("team_members").find({}).toArray()
 
-    return NextResponse.json(members)
+    await db.collection("team_invites").deleteOne({
+      _id: new ObjectId(params.id),
+    })
+
+    return NextResponse.json({ message: "Invitation cancelled" })
   } catch (error) {
-    console.error("Error fetching team members:", error)
+    console.error("Error cancelling invitation:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

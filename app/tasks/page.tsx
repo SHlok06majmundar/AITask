@@ -1,5 +1,7 @@
 "use client"
-import { useUser, redirect } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Sidebar } from "@/components/sidebar"
 import { TaskBoard } from "@/components/task-board"
@@ -7,13 +9,20 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 
 export default function TasksPage() {
   const { isLoaded, isSignedIn } = useUser()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.push("/sign-in")
+    }
+  }, [isLoaded, isSignedIn, router])
 
   if (!isLoaded) {
     return <LoadingSpinner />
   }
 
   if (!isSignedIn) {
-    redirect("/sign-in")
+    return <LoadingSpinner />
   }
 
   return (
