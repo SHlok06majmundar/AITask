@@ -2,102 +2,136 @@ import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getDatabase } from "@/lib/mongodb"
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const range = searchParams.get("range") || "7d"
-
     const db = await getDatabase()
 
-    // Calculate date range
+    // Get current date for calculations
     const now = new Date()
-    const daysBack = range === "30d" ? 30 : range === "90d" ? 90 : 7
-    const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()))
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    // Get tasks data
-    const tasks = await db.collection("tasks").find({ userId }).toArray()
-    const recentTasks = tasks.filter((task) => new Date(task.createdAt) >= startDate)
+    // Fetch tasks data
+    const tasks = await db
+      .collection("tasks")
+      .find({
+        $or: [{ assignedTo: userId }, { createdBy: userId }],
+      })
+      .toArray()
 
-    // Get team members count
-    const teamMembers = await db.collection("team_members").countDocuments({ teamId: userId })
+    // Fetch team data
+    const teamMembers = await db
+      .collection("team_members")
+      .find({
+        $or: [{ userId: userId }, { teamId: userId }],
+      })
+      .toArray()
 
-    // Calculate metrics
-    const totalTasks = recentTasks.length
-    const completedTasks = recentTasks.filter((task) => task.status === "done").length
-    const inProgressTasks = recentTasks.filter((task) => task.status === "in-progress").length
-    const overdueTasks = recentTasks.filter((task) => {
-      if (!task.dueDate) return false
-      return new Date(task.dueDate) < now && task.status !== "done"
-    }).length
+    // Fetch calendar events
+    const events = await db
+      .collection("calendar_events")
+      .find({
+        $or: [{ createdBy: userId }, { attendees: { $in: [userId] } }],
+      })
+      .toArray()
 
-    // Calculate average completion time (mock data for now)
-    const avgCompletionTime = 2.4
+    // Calculate analytics
+    const totalTasks = tasks.length
+    const completedTasks = tasks.filter((t) => t.status === "completed").length
+    const inProgressTasks = tasks.filter((t) => t.status === "in-progress").length
+    const overdueTasks = tasks.filter(
+      (t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "completed",
+    ).length
 
-    // Calculate productivity score
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
     const productivityScore = Math.min(
       100,
-      Math.round(
-        (completedTasks / Math.max(totalTasks, 1)) * 100 * 0.7 +
-          (Math.max(0, totalTasks - overdueTasks) / Math.max(totalTasks, 1)) * 100 * 0.3,
-      ),
+      Math.max(0, completionRate * 0.6 + Math.max(0, 100 - (overdueTasks / totalTasks) * 100) * 0.4),
     )
 
-    // Generate weekly progress data
-    const weeklyProgress = []
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    // Generate trend data (simulated for demo)
+    const dailyTrends = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date()
+      date.setDate(date.getDate() - (6 - i))
+      return {
+        date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        completed: Math.floor(Math.random() * 10) + 1,
+        created: Math.floor(Math.random() * 8) + 2,
+        productivity: Math.floor(Math.random() * 30) + 70,
+      }
+    })
 
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-      const dayTasks = recentTasks.filter((task) => {
-        const taskDate = new Date(task.createdAt)
-        return taskDate.toDateString() === date.toDateString()
-      })
+    const weeklyTrends = Array.from({ length: 4 }, (_, i) => ({
+      week: `Week ${i + 1}`,
+      tasks: Math.floor(Math.random() * 20) + 10,
+      hours: Math.floor(Math.random() * 30) + 20,
+      efficiency: Math.floor(Math.random() * 20) + 75,
+    }))
 
-      weeklyProgress.push({
-        day: days[date.getDay() === 0 ? 6 : date.getDay() - 1],
-        completed: dayTasks.filter((task) => task.status === "done").length,
-        created: dayTasks.length,
-      })
-    }
+    const monthlyTrends = Array.from({ length: 6 }, (_, i) => {
+      const date = new Date()
+      date.setMonth(date.getMonth() - (5 - i))
+      return {
+        month: date.toLocaleDateString("en-US", { month: "short" }),
+        productivity: Math.floor(Math.random() * 20) + 70,
+        teamGrowth: Math.floor(Math.random() * 5) + 1,
+        satisfaction: Math.floor(Math.random() * 15) + 80,
+      }
+    })
 
     // Priority distribution
-    const priorityDistribution = {
-      high: recentTasks.filter((task) => task.priority === "high").length,
-      medium: recentTasks.filter((task) => task.priority === "medium").length,
-      low: recentTasks.filter((task) => task.priority === "low").length,
-    }
+    const priorities = [
+      { name: "High", value: tasks.filter((t) => t.priority === "high").length, color: "#ef4444" },
+      { name: "Medium", value: tasks.filter((t) => t.priority === "medium").length, color: "#f59e0b" },
+      { name: "Low", value: tasks.filter((t) => t.priority === "low").length, color: "#10b981" },
+    ]
 
-    // Team productivity (mock data)
-    const teamProductivity = [
-      { name: "You", completed: completedTasks, pending: totalTasks - completedTasks },
-      {
-        name: "Team Member 1",
-        completed: Math.floor(Math.random() * 10) + 5,
-        pending: Math.floor(Math.random() * 5) + 2,
-      },
-      {
-        name: "Team Member 2",
-        completed: Math.floor(Math.random() * 8) + 3,
-        pending: Math.floor(Math.random() * 4) + 1,
-      },
+    // Categories (simulated)
+    const categories = [
+      { name: "Development", completed: 12, total: 15, percentage: 80 },
+      { name: "Design", completed: 8, total: 12, percentage: 67 },
+      { name: "Marketing", completed: 5, total: 8, percentage: 63 },
+      { name: "Research", completed: 3, total: 5, percentage: 60 },
     ]
 
     const analyticsData = {
-      totalTasks,
-      completedTasks,
-      inProgressTasks,
-      overdueTasks,
-      teamMembers: teamMembers + 1, // Include current user
-      avgCompletionTime,
-      productivityScore,
-      weeklyProgress,
-      priorityDistribution,
-      teamProductivity,
+      productivity: {
+        score: Math.round(productivityScore),
+        trend: Math.floor(Math.random() * 20) - 10, // -10 to +10
+        tasksCompleted: completedTasks,
+        averageCompletionTime: Math.round((Math.random() * 4 + 2) * 10) / 10, // 2-6 hours
+      },
+      team: {
+        totalMembers: teamMembers.length || 1,
+        activeMembers: Math.max(1, Math.floor(teamMembers.length * 0.8)),
+        collaboration: Math.floor(Math.random() * 20) + 70,
+        efficiency: Math.floor(Math.random() * 15) + 80,
+      },
+      tasks: {
+        total: totalTasks,
+        completed: completedTasks,
+        inProgress: inProgressTasks,
+        overdue: overdueTasks,
+        completionRate,
+      },
+      timeTracking: {
+        totalHours: Math.floor(Math.random() * 50) + 100,
+        averageDaily: Math.round((Math.random() * 3 + 6) * 10) / 10, // 6-9 hours
+        mostProductiveHour: Math.floor(Math.random() * 4) + 9, // 9-12
+        efficiency: Math.floor(Math.random() * 15) + 80,
+      },
+      trends: {
+        daily: dailyTrends,
+        weekly: weeklyTrends,
+        monthly: monthlyTrends,
+      },
+      priorities,
+      categories,
     }
 
     return NextResponse.json(analyticsData)

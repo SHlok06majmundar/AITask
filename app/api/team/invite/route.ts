@@ -12,50 +12,81 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { email, role = "member" } = await request.json()
+    const { toUserId, toUserEmail, toUserName, role = "member", message } = await request.json()
 
-    if (!email || !email.includes("@")) {
-      return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
+    if (!toUserId || !toUserEmail || !toUserName) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     const db = await getDatabase()
 
-    // Check if user is already a member
-    const existingMember = await db.collection("team_members").findOne({ email })
+    // Check if user is trying to invite themselves
+    if (toUserId === userId) {
+      return NextResponse.json({ error: "You cannot invite yourself" }, { status: 400 })
+    }
+
+    // Check if user is already a team member
+    const existingMember = await db.collection("team_members").findOne({
+      userId: toUserId,
+      teamId: userId, // Using inviter's userId as teamId for simplicity
+    })
+
     if (existingMember) {
       return NextResponse.json({ error: "User is already a team member" }, { status: 400 })
     }
 
     // Check if invitation already exists
     const existingInvite = await db.collection("team_invites").findOne({
-      email,
+      fromUserId: userId,
+      toUserId: toUserId,
       status: "pending",
     })
+
     if (existingInvite) {
-      return NextResponse.json({ error: "Invitation already sent to this email" }, { status: 400 })
+      return NextResponse.json({ error: "Invitation already sent to this user" }, { status: 400 })
     }
 
     // Create invitation
     const inviteToken = uuidv4()
     const invitation = {
-      email,
+      fromUserId: userId,
+      fromUserName: `${user.firstName} ${user.lastName}`,
+      fromUserImage: user.imageUrl,
+      toUserId,
+      toUserEmail,
+      toUserName,
+      teamName: `${user.firstName}'s Team`,
       role,
-      invitedBy: userId,
-      invitedByName: `${user.firstName} ${user.lastName}`,
-      invitedAt: new Date().toISOString(),
       status: "pending",
+      message: message || `Join my team as ${role}!`,
+      invitedAt: new Date().toISOString(),
       inviteToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     }
 
     await db.collection("team_invites").insertOne(invitation)
 
-    // Create notification for inviter
+    // Create notification for the invited user
+    await db.collection("notifications").insertOne({
+      userId: toUserId,
+      type: "team_invite",
+      title: "Team Invitation Received",
+      message: `${user.firstName} ${user.lastName} invited you to join their team as ${role}`,
+      read: false,
+      createdAt: new Date().toISOString(),
+      data: {
+        inviteId: invitation.inviteToken,
+        fromUser: `${user.firstName} ${user.lastName}`,
+        role,
+      },
+    })
+
+    // Create notification for the inviter
     await db.collection("notifications").insertOne({
       userId,
-      type: "team",
+      type: "team_invite_sent",
       title: "Invitation Sent",
-      message: `Team invitation sent to ${email}`,
+      message: `Team invitation sent to ${toUserName}`,
       read: false,
       createdAt: new Date().toISOString(),
     })

@@ -10,45 +10,41 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { title, description, date, time, type, priority, location } = body
+    const { title, description, start, end, type, priority, attendees } = await request.json()
 
-    if (!title || !date || !time) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!title || !start || !end) {
+      return NextResponse.json({ error: "Title, start, and end are required" }, { status: 400 })
     }
 
     const db = await getDatabase()
-    const result = await db.collection("calendar_events").updateOne(
-      { _id: new ObjectId(params.id), userId },
-      {
-        $set: {
-          title,
-          description: description || "",
-          date,
-          time,
-          type: type || "meeting",
-          priority: priority || "medium",
-          location: location || "",
-          updatedAt: new Date().toISOString(),
-        },
-      },
-    )
+    const eventId = params.id
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 })
-    }
-
-    // Create notification
-    await db.collection("notifications").insertOne({
-      userId,
-      type: "calendar",
-      title: "Event Updated",
-      message: `Event "${title}" has been updated`,
-      read: false,
-      createdAt: new Date().toISOString(),
+    // Check if event exists and user has permission
+    const existingEvent = await db.collection("calendar_events").findOne({
+      _id: new ObjectId(eventId),
+      createdBy: userId,
     })
 
-    return NextResponse.json({ success: true })
+    if (!existingEvent) {
+      return NextResponse.json({ error: "Event not found or unauthorized" }, { status: 404 })
+    }
+
+    const updatedEvent = {
+      title,
+      description: description || "",
+      start: new Date(start),
+      end: new Date(end),
+      type: type || "meeting",
+      priority: priority || "medium",
+      attendees: attendees || [],
+      updatedAt: new Date().toISOString(),
+    }
+
+    await db.collection("calendar_events").updateOne({ _id: new ObjectId(eventId) }, { $set: updatedEvent })
+
+    const event = await db.collection("calendar_events").findOne({ _id: new ObjectId(eventId) })
+
+    return NextResponse.json(event)
   } catch (error) {
     console.error("Error updating calendar event:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -63,29 +59,21 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     }
 
     const db = await getDatabase()
+    const eventId = params.id
 
-    // Get event details before deletion for notification
-    const event = await db.collection("calendar_events").findOne({ _id: new ObjectId(params.id), userId })
+    // Check if event exists and user has permission
+    const existingEvent = await db.collection("calendar_events").findOne({
+      _id: new ObjectId(eventId),
+      createdBy: userId,
+    })
 
-    const result = await db.collection("calendar_events").deleteOne({ _id: new ObjectId(params.id), userId })
-
-    if (result.deletedCount === 0) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 })
+    if (!existingEvent) {
+      return NextResponse.json({ error: "Event not found or unauthorized" }, { status: 404 })
     }
 
-    // Create notification
-    if (event) {
-      await db.collection("notifications").insertOne({
-        userId,
-        type: "calendar",
-        title: "Event Deleted",
-        message: `Event "${event.title}" has been deleted`,
-        read: false,
-        createdAt: new Date().toISOString(),
-      })
-    }
+    await db.collection("calendar_events").deleteOne({ _id: new ObjectId(eventId) })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: "Event deleted successfully" })
   } catch (error) {
     console.error("Error deleting calendar event:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

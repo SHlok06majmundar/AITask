@@ -10,7 +10,15 @@ export async function GET() {
     }
 
     const db = await getDatabase()
-    const events = await db.collection("calendar_events").find({ userId }).sort({ date: 1, time: 1 }).toArray()
+
+    // Get events for current user and their team members
+    const events = await db
+      .collection("calendar_events")
+      .find({
+        $or: [{ createdBy: userId }, { attendees: { $in: [userId] } }],
+      })
+      .sort({ start: 1 })
+      .toArray()
 
     return NextResponse.json(events)
   } catch (error) {
@@ -26,39 +34,50 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { title, description, date, time, type, priority, location } = body
+    const { title, description, start, end, type, priority, attendees } = await request.json()
 
-    if (!title || !date || !time) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!title || !start || !end) {
+      return NextResponse.json({ error: "Title, start, and end are required" }, { status: 400 })
     }
 
     const db = await getDatabase()
+
     const event = {
       title,
       description: description || "",
-      date,
-      time,
+      start: new Date(start),
+      end: new Date(end),
       type: type || "meeting",
       priority: priority || "medium",
-      location: location || "",
-      userId,
+      attendees: attendees || [],
+      createdBy: userId,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }
 
     const result = await db.collection("calendar_events").insertOne(event)
+    const createdEvent = await db.collection("calendar_events").findOne({ _id: result.insertedId })
 
-    // Create notification
-    await db.collection("notifications").insertOne({
-      userId,
-      type: "calendar",
-      title: "Event Created",
-      message: `New ${type} "${title}" scheduled for ${date} at ${time}`,
-      read: false,
-      createdAt: new Date().toISOString(),
-    })
+    // Create notifications for attendees
+    if (attendees && attendees.length > 0) {
+      const notifications = attendees.map((attendeeEmail: string) => ({
+        email: attendeeEmail,
+        type: "calendar_invite",
+        title: "New Calendar Event",
+        message: `You've been invited to: ${title}`,
+        read: false,
+        createdAt: new Date().toISOString(),
+        data: {
+          eventId: result.insertedId,
+          eventTitle: title,
+          eventStart: start,
+        },
+      }))
 
-    return NextResponse.json({ ...event, _id: result.insertedId })
+      await db.collection("notifications").insertMany(notifications)
+    }
+
+    return NextResponse.json(createdEvent, { status: 201 })
   } catch (error) {
     console.error("Error creating calendar event:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
