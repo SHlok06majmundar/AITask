@@ -1,116 +1,261 @@
-# SyncSphere - Advanced Task Management Platform
+# AITask - Intelligent Team Task Management Platform
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+[![Next.js](https://img.shields.io/badge/Next.js-15.2.4-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7.2-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Latest-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
+[![Clerk](https://img.shields.io/badge/Clerk-Auth-purple?style=for-the-badge)](https://clerk.com/)
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/shlok06majmundars-projects/v0-sync-sphere-concept)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/lFKrbG5hVYN)
+## 🚀 Overview
 
-## Overview
+AITask is a cutting-edge team task management platform that combines powerful AI assistance with intuitive collaboration tools. Built for modern teams who need intelligent task organization, real-time collaboration, and data-driven productivity insights.
 
-SyncSphere is a comprehensive task management platform designed for modern teams. Built with Next.js 15, it offers real-time collaboration, intelligent task organization, and advanced productivity features.
+## ✨ Key Features
 
-## Features
+### 🤖 AI-Powered Productivity
+- **Intelligent Assistant** - AI-powered chat assistant using Google Gemini API for task optimization and productivity insights
+- **Smart Analytics** - Real-time performance metrics and intelligent recommendations
+- **Automated Insights** - AI-driven task prioritization and time management suggestions
 
-### 🚀 Core Features
-- **Real-time Task Management** - Live updates across all team members
-- **Team Collaboration** - Invite members, assign tasks, track progress
-- **Smart Calendar** - Integrated scheduling with event management
-- **Advanced Analytics** - Productivity insights and performance metrics
-- **Productivity Assistant** - Intelligent task suggestions and optimization
+### � Advanced Team Collaboration
+- **Role-Based Access Control** - Owner, Admin, and Member roles with granular permissions
+- **Real-Time Task Boards** - Live kanban boards with instant updates
+- **Team Task Management** - Dedicated team workspace with collaborative features
+- **Member Invitations** - Seamless team building with invite system
 
-### 🛠 Technical Features
-- **Next.js 15** with App Router
-- **MongoDB** for data persistence
-- **Clerk Authentication** for secure user management
-- **Real-time Updates** with live polling
-- **Responsive Design** optimized for all devices
-- **Dark/Light Mode** with system preference detection
+### 📊 Comprehensive Task Management
+- **Dual Task Systems** - Personal tasks and team tasks with different workflows
+- **Progress Tracking** - Visual progress indicators and completion metrics
+- **Time Tracking** - Built-in time logging with session management
+- **Priority Management** - Four-tier priority system (Low, Medium, High, Urgent)
+- **Status Workflows** - Customizable task statuses (Todo, In Progress, Review, Completed)
 
-## Getting Started
+### 💡 Smart Features
+- **Real-Time Updates** - Live synchronization across all connected clients
+- **Notification System** - Instant notifications for task updates and comments
+- **Activity Logging** - Comprehensive audit trail for all actions
+- **Comment System** - Threaded comments with rich user interactions
+- **Calendar Integration** - Task scheduling and event management
+
+### 🎨 Modern User Experience
+- **Responsive Design** - Optimized for desktop, tablet, and mobile
+- **Dark/Light Mode** - Automatic theme switching with user preferences
+- **Professional UI** - Clean, intuitive interface built with Tailwind CSS
+- **Breadcrumb Navigation** - Clear navigation hierarchy
+- **Loading States** - Smooth user experience with proper loading indicators
+
+## 🛠 Tech Stack
+
+### Frontend
+- **Next.js 15.2.4** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first CSS framework
+- **Lucide Icons** - Beautiful, customizable icons
+- **Sonner** - Toast notifications
+
+### Backend & Database
+- **MongoDB** - NoSQL database for scalable data storage
+- **Next.js API Routes** - Serverless API endpoints
+- **Clerk Authentication** - Secure user authentication and management
+
+### AI & Integration
+- **Google Gemini API** - Advanced AI for task assistance and insights
+- **Real-time Polling** - Live data synchronization
+
+### Development Tools
+- **ESLint** - Code linting and quality
+- **PostCSS** - CSS processing
+- **TypeScript Config** - Strict type checking
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
-- MongoDB database
+- Node.js 18.0 or higher
+- MongoDB database (local or cloud)
 - Clerk account for authentication
+- Google AI API key for Gemini integration
 
 ### Installation
 
-1. Clone the repository:
-\`\`\`bash
-git clone https://github.com/your-username/syncsphere-task-manager.git
-cd syncsphere-task-manager
-\`\`\`
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/aitask.git
+   cd aitask
+   ```
 
-2. Install dependencies:
-\`\`\`bash
-npm install
-\`\`\`
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   pnpm install
+   ```
 
-3. Set up environment variables:
-\`\`\`bash
-cp .env.example .env.local
-\`\`\`
+3. **Environment Setup**
+   Create a `.env.local` file in the root directory:
+   ```env
+   # Clerk Authentication
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+   CLERK_SECRET_KEY=your_clerk_secret_key
 
-Configure the following variables:
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `CLERK_SECRET_KEY`
-- `MONGODB_URI`
+   # Database
+   MONGODB_URI=your_mongodb_connection_string
 
-4. Run the development server:
-\`\`\`bash
-npm run dev
-\`\`\`
+   # AI Integration
+   GEMINI_API_KEY=your_google_gemini_api_key
+   ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+4. **Database Setup**
+   The application will automatically create the necessary MongoDB collections:
+   - `profiles` - User profiles
+   - `tasks` - Personal tasks
+   - `team_tasks` - Team tasks
+   - `team_members` - Team membership data
+   - `activities` - Activity logs
+   - `notifications` - User notifications
 
-## Deployment
+5. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-### Vercel Deployment
+6. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-1. Connect your repository to Vercel
-2. Configure environment variables in Vercel dashboard
-3. Deploy with automatic builds on push
+## 📁 Project Structure
 
-### Environment Variables
+```
+aitask/
+├── app/                          # Next.js App Router
+│   ├── (auth)/                  # Authentication pages
+│   │   ├── sign-in/            # Sign in page
+│   │   └── sign-up/            # Sign up page
+│   ├── api/                     # API routes
+│   │   ├── activities/         # Activity logging
+│   │   ├── ai/                 # AI assistant endpoints
+│   │   ├── analytics/          # Analytics data
+│   │   ├── calendar/           # Calendar management
+│   │   ├── notifications/      # Notification system
+│   │   ├── tasks/              # Personal task management
+│   │   ├── team/               # Team management
+│   │   └── users/              # User management
+│   ├── ai/                     # AI assistant page
+│   ├── analytics/              # Analytics dashboard
+│   ├── assistant/              # AI assistant interface
+│   ├── calendar/               # Calendar view
+│   ├── onboarding/             # User onboarding
+│   ├── settings/               # User settings
+│   ├── tasks/                  # Personal tasks
+│   ├── team/                   # Team dashboard
+│   ├── globals.css             # Global styles
+│   ├── layout.tsx              # Root layout
+│   └── page.tsx                # Home dashboard
+├── components/                  # Reusable components
+│   ├── auth/                   # Authentication components
+│   ├── ui/                     # UI component library
+│   ├── ai-assistant.tsx        # AI chat interface
+│   ├── dashboard-header.tsx    # Main header component
+│   ├── sidebar.tsx             # Navigation sidebar
+│   ├── task-board.tsx          # Personal task board
+│   ├── team-task-board.tsx     # Team task board
+│   └── ...                     # Other components
+├── hooks/                      # Custom React hooks
+├── lib/                        # Utility libraries
+│   ├── mongodb.ts             # Database connection
+│   └── utils.ts               # Utility functions
+├── public/                     # Static assets
+└── styles/                     # Additional styles
+```
 
-Required environment variables for production:
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `CLERK_SECRET_KEY`
-- `MONGODB_URI`
+## 🔗 API Endpoints
 
-## Project Structure
+### Authentication & Users
+- `GET/POST /api/users/sync` - User profile synchronization
+- `GET /api/profiles` - User profiles
 
-\`\`\`
-syncsphere-task-manager/
-├── app/                    # Next.js App Router pages
-│   ├── api/               # API routes
-│   ├── (auth)/            # Authentication pages
-│   └── (dashboard)/       # Main application pages
-├── components/            # Reusable UI components
-├── lib/                   # Utility functions and configurations
-├── public/               # Static assets
-└── styles/               # Global styles
-\`\`\`
+### Personal Tasks
+- `GET/POST /api/tasks` - Personal task management
+- `GET/PUT/DELETE /api/tasks/[id]` - Individual task operations
 
-## Key Pages
+### Team Management
+- `GET/POST /api/team/tasks` - Team task operations
+- `GET/PUT/DELETE /api/team/tasks/[id]` - Individual team task operations
+- `POST /api/team/tasks/[id]/comments` - Task comments
+- `POST /api/team/tasks/[id]/time` - Time tracking
+- `GET /api/team/my-members` - Team member data
 
-- **Dashboard** (`/`) - Overview of tasks and recent activity
-- **Tasks** (`/tasks`) - Kanban board for task management
-- **Team** (`/team`) - Team member management and invitations
-- **Calendar** (`/calendar`) - Event scheduling and management
-- **Analytics** (`/analytics`) - Productivity metrics and insights
-- **Assistant** (`/assistant`) - Productivity helper and task optimization
-- **Settings** (`/settings`) - User preferences and account management
+### AI & Analytics
+- `POST /api/ai/chat` - AI assistant chat
+- `GET /api/ai/insights` - AI-powered insights
+- `GET /api/analytics` - Performance analytics
 
-## API Routes
+### Notifications & Activities
+- `GET /api/notifications` - User notifications
+- `GET /api/activities` - Activity feed
 
-- `/api/tasks` - Task CRUD operations
-- `/api/team` - Team management
-- `/api/calendar` - Event management
-- `/api/chat` - Productivity assistant
-- `/api/insights` - Analytics and recommendations
+## 👥 User Roles & Permissions
 
-## Contributing
+### Owner
+- Full system access
+- Can create, edit, and delete any tasks
+- Team member management
+- System configuration
+
+### Admin
+- Task creation and management
+- Team member invitations
+- Analytics access
+- Limited system settings
+
+### Member
+- View and comment on tasks
+- Update assigned task status
+- Time tracking
+- Personal task management
+
+## 🔧 Features in Detail
+
+### Personal Task Management
+- Create and manage individual tasks
+- Kanban board interface
+- Priority and status management
+- Real-time updates
+
+### Team Collaboration
+- Shared team workspace
+- Role-based task assignments
+- Collaborative editing (owners only)
+- Team progress tracking
+
+### AI Assistant
+- Natural language task queries
+- Productivity recommendations
+- Intelligent task prioritization
+- Performance insights
+
+### Analytics Dashboard
+- Real-time productivity metrics
+- Task completion rates
+- Time tracking analytics
+- Team performance insights
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Configure environment variables
+4. Deploy automatically
+
+### Environment Variables for Production
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_production_clerk_key
+CLERK_SECRET_KEY=your_production_clerk_secret
+MONGODB_URI=your_production_mongodb_uri
+GEMINI_API_KEY=your_production_gemini_key
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -118,17 +263,32 @@ syncsphere-task-manager/
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+### Development Guidelines
+- Follow TypeScript best practices
+- Use ESLint for code quality
+- Write descriptive commit messages
+- Test your changes thoroughly
+
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## 📞 Support
 
-For support and questions:
-- Create an issue on GitHub
-- Contact the development team
-- Check the documentation
+- **Issues**: [GitHub Issues](https://github.com/yourusername/aitask/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/aitask/discussions)
+- **Email**: support@aitask.dev
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) for the amazing React framework
+- [Clerk](https://clerk.com/) for seamless authentication
+- [MongoDB](https://mongodb.com/) for reliable data storage
+- [Google AI](https://ai.google.dev/) for powerful AI integration
+- [Tailwind CSS](https://tailwindcss.com/) for beautiful styling
 
 ---
 
-Built with ❤️ using Next.js, MongoDB, and modern web technologies.
+**Built with ❤️ for productive teams worldwide**
+
+*AITask - Where Intelligence Meets Productivity*

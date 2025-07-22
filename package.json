@@ -1,7 +1,14 @@
 {
-  "name": "syncsphere-task-manager",
-  "version": "0.1.0",
+  "name": "aitask",
+  "version": "1.0.0",
   "private": true,
+  "description": "AI-powered team task management platform with intelligent collaboration features",
+  "keywords": ["task-management", "ai", "collaboration", "productivity", "nextjs", "mongodb"],
+  "author": "SHlok06majmundar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SHlok06majmundar/AITask.git"
+  },
   "scripts": {
     "build": "next build",
     "dev": "next dev",
