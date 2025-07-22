@@ -1,69 +1,66 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Users, Mail, CheckCircle, XCircle, Clock } from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Users, Mail, Calendar, CheckCircle, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
-interface InviteData {
+interface InvitationData {
   email: string
+  role: string
   invitedBy: string
-  invitedByName: string
-  createdAt: string
-  status: string
-  teamName?: string
+  invitedAt: string
 }
 
 export default function JoinTeamPage() {
   const params = useParams()
   const router = useRouter()
   const { user, isLoaded } = useUser()
-  const [invite, setInvite] = useState<InviteData | null>(null)
+  const [invitation, setInvitation] = useState<InvitationData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [processing, setProcessing] = useState(false)
-  const [error, setError] = useState("")
+  const [accepting, setAccepting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const token = params.token as string
 
   useEffect(() => {
-    if (isLoaded && token) {
-      fetchInviteData()
-    }
-  }, [isLoaded, token])
+    if (!isLoaded) return
 
-  const fetchInviteData = async () => {
-    try {
-      const response = await fetch(`/api/team/join/${token}`)
-      const data = await response.json()
+    const fetchInvitation = async () => {
+      try {
+        const response = await fetch(`/api/team/join/${token}`)
+        const data = await response.json()
 
-      if (response.ok) {
-        setInvite(data)
-      } else {
-        setError(data.error || "Invalid or expired invitation")
+        if (response.ok) {
+          setInvitation(data)
+        } else {
+          setError(data.error || "Invalid invitation")
+        }
+      } catch (error) {
+        setError("Failed to load invitation")
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      setError("Failed to load invitation")
-    } finally {
-      setLoading(false)
     }
-  }
 
-  const acceptInvite = async () => {
+    fetchInvitation()
+  }, [token, isLoaded])
+
+  const handleAcceptInvitation = async () => {
     if (!user) {
-      router.push("/sign-in")
+      toast.error("Please sign in to accept the invitation")
       return
     }
 
-    setProcessing(true)
+    setAccepting(true)
     try {
       const response = await fetch(`/api/team/join/${token}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "accept" }),
       })
 
       const data = await response.json()
@@ -77,51 +74,32 @@ export default function JoinTeamPage() {
     } catch (error) {
       toast.error("Failed to join team")
     } finally {
-      setProcessing(false)
+      setAccepting(false)
     }
   }
 
-  const declineInvite = async () => {
-    setProcessing(true)
-    try {
-      const response = await fetch(`/api/team/join/${token}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "decline" }),
-      })
-
-      if (response.ok) {
-        toast.success("Invitation declined")
-        router.push("/")
-      } else {
-        toast.error("Failed to decline invitation")
-      }
-    } catch (error) {
-      toast.error("Failed to decline invitation")
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  if (!isLoaded || loading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading invitation...</p>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="container mx-auto p-6 max-w-md">
-        <Card>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-2" />
+            <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <CardTitle className="text-red-600">Invalid Invitation</CardTitle>
+            <CardDescription>{error}</CardDescription>
           </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => router.push("/")} variant="outline">
+          <CardContent>
+            <Button onClick={() => router.push("/")} className="w-full">
               Go to Dashboard
             </Button>
           </CardContent>
@@ -130,81 +108,109 @@ export default function JoinTeamPage() {
     )
   }
 
-  if (!invite) {
-    return null
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Users className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+            <CardTitle>Team Invitation</CardTitle>
+            <CardDescription>Please sign in to accept this team invitation</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="font-medium">{invitation?.email}</p>
+              <p className="text-sm text-muted-foreground">
+                Invited as {invitation?.role} by {invitation?.invitedBy}
+              </p>
+            </div>
+            <Button onClick={() => router.push("/sign-in")} className="w-full">
+              Sign In to Accept
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
-  // Check if user email matches invite email
-  const emailMatches = user?.emailAddresses?.[0]?.emailAddress === invite.email
-
   return (
-    <div className="container mx-auto p-6 max-w-md">
-      <Card>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <Users className="h-12 w-12 text-blue-500 mx-auto mb-2" />
-          <CardTitle>Team Invitation</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-center">
-            <p className="text-lg font-medium mb-2">You've been invited to join SyncSphere!</p>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-center justify-center gap-2">
-                <Mail className="h-4 w-4" />
-                <span>{invite.email}</span>
+          <div className="flex justify-center mb-4">
+            <div className="relative">
+              <Avatar className="h-16 w-16">
+                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xl">
+                  {invitation?.invitedBy
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-2 -right-2 bg-blue-500 rounded-full p-1">
+                <Users className="h-4 w-4 text-white" />
               </div>
-              <p>Invited by {invite.invitedByName}</p>
-              <p>
-                <Clock className="h-3 w-3 inline mr-1" />
-                {new Date(invite.createdAt).toLocaleDateString()}
-              </p>
+            </div>
+          </div>
+          <CardTitle>You're Invited to Join the Team!</CardTitle>
+          <CardDescription>{invitation?.invitedBy} has invited you to collaborate</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Email</span>
+              </div>
+              <span className="font-medium">{invitation?.email}</span>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Role</span>
+              </div>
+              <Badge variant="secondary" className="capitalize">
+                {invitation?.role}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Invited</span>
+              </div>
+              <span className="text-sm">
+                {invitation?.invitedAt ? new Date(invitation.invitedAt).toLocaleDateString() : ""}
+              </span>
             </div>
           </div>
 
-          <div className="flex justify-center">
-            <Badge variant={invite.status === "pending" ? "default" : "secondary"}>{invite.status}</Badge>
+          <div className="space-y-3">
+            <Button onClick={handleAcceptInvitation} className="w-full" disabled={accepting}>
+              {accepting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Joining Team...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Accept Invitation
+                </>
+              )}
+            </Button>
+
+            <Button variant="outline" onClick={() => router.push("/")} className="w-full">
+              Maybe Later
+            </Button>
           </div>
 
-          {!user && (
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-3">Please sign in to accept this invitation</p>
-              <Button onClick={() => router.push("/sign-in")} className="w-full">
-                Sign In
-              </Button>
-            </div>
-          )}
-
-          {user && !emailMatches && (
-            <div className="text-center">
-              <p className="text-sm text-red-600 mb-3">
-                This invitation was sent to {invite.email}, but you're signed in as{" "}
-                {user.emailAddresses?.[0]?.emailAddress}. Please sign in with the correct email address.
-              </p>
-              <Button onClick={() => router.push("/sign-in")} variant="outline" className="w-full">
-                Sign In with Different Account
-              </Button>
-            </div>
-          )}
-
-          {user && emailMatches && invite.status === "pending" && (
-            <div className="space-y-3">
-              <Button onClick={acceptInvite} disabled={processing} className="w-full">
-                {processing ? "Joining..." : "Accept Invitation"}
-              </Button>
-              <Button onClick={declineInvite} disabled={processing} variant="outline" className="w-full bg-transparent">
-                {processing ? "Declining..." : "Decline"}
-              </Button>
-            </div>
-          )}
-
-          {invite.status === "accepted" && (
-            <div className="text-center">
-              <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-              <p className="text-green-600 font-medium">Already accepted</p>
-              <Button onClick={() => router.push("/team")} className="w-full mt-3">
-                Go to Team
-              </Button>
-            </div>
-          )}
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">
+              By accepting, you'll gain access to team tasks, projects, and collaboration tools.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

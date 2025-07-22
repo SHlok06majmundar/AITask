@@ -1,126 +1,120 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
-import { connectToDatabase } from "@/lib/mongodb"
+import { NextResponse } from "next/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
+import { getDatabase } from "@/lib/mongodb"
 
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(request: Request, { params }: { params: { token: string } }) {
   try {
-    const { db } = await connectToDatabase()
-    const token = params.token
-
-    const invite = await db.collection("team_invites").findOne({
-      token,
+    const db = await getDatabase()
+    const invitation = await db.collection("team_invites").findOne({
+      inviteToken: params.token,
       status: "pending",
     })
 
-    if (!invite) {
+    if (!invitation) {
       return NextResponse.json({ error: "Invalid or expired invitation" }, { status: 404 })
     }
 
-    // Check if invite is expired (7 days)
-    const expiryDate = new Date(invite.createdAt)
-    expiryDate.setDate(expiryDate.getDate() + 7)
-
-    if (new Date() > expiryDate) {
-      await db.collection("team_invites").updateOne({ _id: invite._id }, { $set: { status: "expired" } })
-
-      return NextResponse.json({ error: "Invitation has expired" }, { status: 410 })
+    // Check if invitation has expired
+    if (new Date() > new Date(invitation.expiresAt)) {
+      await db.collection("team_invites").updateOne({ _id: invitation._id }, { $set: { status: "expired" } })
+      return NextResponse.json({ error: "Invitation has expired" }, { status: 400 })
     }
 
     return NextResponse.json({
-      email: invite.email,
-      invitedBy: invite.invitedBy,
-      invitedByName: invite.invitedByName,
-      createdAt: invite.createdAt,
-      status: invite.status,
+      email: invitation.email,
+      role: invitation.role,
+      invitedBy: invitation.invitedByName,
+      invitedAt: invitation.invitedAt,
     })
   } catch (error) {
-    console.error("Error fetching invite:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error fetching invitation:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
+export async function POST(request: Request, { params }: { params: { token: string } }) {
   try {
-    const { userId } = auth()
-    if (!userId) {
+    const { userId } = await auth()
+    const user = await currentUser()
+
+    if (!userId || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { action } = await request.json()
-    const { db } = await connectToDatabase()
-    const token = params.token
-
-    const invite = await db.collection("team_invites").findOne({
-      token,
+    const db = await getDatabase()
+    const invitation = await db.collection("team_invites").findOne({
+      inviteToken: params.token,
       status: "pending",
     })
 
-    if (!invite) {
+    if (!invitation) {
       return NextResponse.json({ error: "Invalid or expired invitation" }, { status: 404 })
     }
 
-    if (action === "accept") {
-      // Get user info from Clerk
-      const userResponse = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-        },
-      })
-
-      const userData = await userResponse.json()
-      const userEmail = userData.email_addresses?.[0]?.email_address
-
-      // Verify email matches
-      if (userEmail !== invite.email) {
-        return NextResponse.json({ error: "Email address does not match invitation" }, { status: 400 })
-      }
-
-      // Check if user is already a team member
-      const existingMember = await db.collection("team_members").findOne({
-        userId,
-      })
-
-      if (existingMember) {
-        return NextResponse.json({ error: "You are already a team member" }, { status: 400 })
-      }
-
-      // Add user to team
-      await db.collection("team_members").insertOne({
-        userId,
-        email: userEmail,
-        name:
-          userData.first_name && userData.last_name
-            ? `${userData.first_name} ${userData.last_name}`
-            : userData.username || userEmail,
-        role: "member",
-        joinedAt: new Date(),
-        avatar: userData.image_url,
-      })
-
-      // Mark invite as accepted
-      await db.collection("team_invites").updateOne({ _id: invite._id }, { $set: { status: "accepted" } })
-
-      // Create notification for the inviter
-      await db.collection("notifications").insertOne({
-        userId: invite.invitedBy,
-        type: "team_join",
-        title: "Team Member Joined",
-        message: `${userData.first_name || userEmail} has joined your team`,
-        read: false,
-        createdAt: new Date(),
-      })
-
-      return NextResponse.json({ success: true })
-    } else if (action === "decline") {
-      // Mark invite as declined
-      await db.collection("team_invites").updateOne({ _id: invite._id }, { $set: { status: "declined" } })
-
-      return NextResponse.json({ success: true })
-    } else {
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+    // Check if invitation has expired
+    if (new Date() > new Date(invitation.expiresAt)) {
+      await db.collection("team_invites").updateOne({ _id: invitation._id }, { $set: { status: "expired" } })
+      return NextResponse.json({ error: "Invitation has expired" }, { status: 400 })
     }
+
+    // Check if user email matches invitation
+    if (user.emailAddresses[0]?.emailAddress !== invitation.email) {
+      return NextResponse.json(
+        {
+          error: "This invitation is for a different email address",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Add user to team
+    const teamMember = {
+      userId,
+      email: user.emailAddresses[0]?.emailAddress,
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      imageUrl: user.imageUrl || "",
+      role: invitation.role,
+      status: "active",
+      joinedAt: new Date().toISOString(),
+    }
+
+    await db.collection("team_members").insertOne(teamMember)
+
+    // Update invitation status
+    await db
+      .collection("team_invites")
+      .updateOne({ _id: invitation._id }, { $set: { status: "accepted", acceptedAt: new Date().toISOString() } })
+
+    // Create notifications
+    await Promise.all([
+      // Notification for new member
+      db
+        .collection("notifications")
+        .insertOne({
+          userId,
+          type: "team",
+          title: "Welcome to the Team!",
+          message: `You've successfully joined the team as ${invitation.role}`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        }),
+      // Notification for inviter
+      db
+        .collection("notifications")
+        .insertOne({
+          userId: invitation.invitedBy,
+          type: "team",
+          title: "Invitation Accepted",
+          message: `${user.firstName} ${user.lastName} has joined the team`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        }),
+    ])
+
+    return NextResponse.json({ success: true, message: "Successfully joined the team!" })
   } catch (error) {
-    console.error("Error processing invite:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error accepting invitation:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

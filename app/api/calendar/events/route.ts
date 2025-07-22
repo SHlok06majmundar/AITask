@@ -14,7 +14,7 @@ export async function GET() {
 
     return NextResponse.json(events)
   } catch (error) {
-    console.error("Error fetching events:", error)
+    console.error("Error fetching calendar events:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
@@ -26,21 +26,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const eventData = await request.json()
-    const db = await getDatabase()
+    const body = await request.json()
+    const { title, description, date, time, type, priority, location } = body
 
+    if (!title || !date || !time) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    const db = await getDatabase()
     const event = {
-      ...eventData,
+      title,
+      description: description || "",
+      date,
+      time,
+      type: type || "meeting",
+      priority: priority || "medium",
+      location: location || "",
       userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
     }
 
     const result = await db.collection("calendar_events").insertOne(event)
 
+    // Create notification
+    await db.collection("notifications").insertOne({
+      userId,
+      type: "calendar",
+      title: "Event Created",
+      message: `New ${type} "${title}" scheduled for ${date} at ${time}`,
+      read: false,
+      createdAt: new Date().toISOString(),
+    })
+
     return NextResponse.json({ ...event, _id: result.insertedId })
   } catch (error) {
-    console.error("Error creating event:", error)
+    console.error("Error creating calendar event:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
