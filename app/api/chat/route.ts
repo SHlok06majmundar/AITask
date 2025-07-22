@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
+import { GoogleGenerativeAI } from "@google/generative-ai"
+import { getDatabase } from "@/lib/mongodb"
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "")
 
 export async function POST(request: Request) {
   try {
@@ -10,73 +14,103 @@ export async function POST(request: Request) {
 
     const { message } = await request.json()
 
-    // Rule-based responses for productivity assistant
-    let response = ""
-
-    if (message.toLowerCase().includes("prioritize") || message.toLowerCase().includes("priority")) {
-      response = `Here are some task prioritization strategies:
-
-• **Eisenhower Matrix**: Categorize tasks by urgency and importance
-• **ABC Method**: Rank tasks as A (must do), B (should do), C (could do)
-• **Time-blocking**: Allocate specific time slots for different task types
-• **Energy matching**: Do complex tasks when your energy is highest
-
-Would you like me to help you organize your current tasks using one of these methods?`
-    } else if (message.toLowerCase().includes("schedule") || message.toLowerCase().includes("time")) {
-      response = `Schedule optimization tips:
-
-• **Time audit**: Track how you spend time for a week
-• **Batch similar tasks**: Group related activities together
-• **Buffer time**: Add 15-20% extra time for unexpected delays
-• **Peak hours**: Schedule important work during your most productive hours
-• **Break intervals**: Use techniques like Pomodoro (25min work, 5min break)
-
-What specific scheduling challenges are you facing?`
-    } else if (message.toLowerCase().includes("team") || message.toLowerCase().includes("collaboration")) {
-      response = `Team productivity insights:
-
-• **Clear communication**: Use structured updates and check-ins
-• **Defined roles**: Ensure everyone knows their responsibilities
-• **Shared goals**: Align team objectives with project outcomes
-• **Regular feedback**: Implement weekly retrospectives
-• **Tool integration**: Use consistent project management tools
-
-How can I help improve your team's collaboration?`
-    } else if (message.toLowerCase().includes("productivity") || message.toLowerCase().includes("tips")) {
-      response = `Productivity enhancement strategies:
-
-• **Single-tasking**: Focus on one task at a time for better quality
-• **2-minute rule**: If it takes less than 2 minutes, do it now
-• **Environment design**: Create a distraction-free workspace
-• **Energy management**: Work with your natural energy rhythms
-• **Regular reviews**: Weekly planning and daily check-ins
-
-What area of productivity would you like to focus on?`
-    } else if (message.toLowerCase().includes("hello") || message.toLowerCase().includes("hi")) {
-      response = `Hello! I'm here to help you boost your productivity. I can assist with:
-
-• Task prioritization and organization
-• Schedule optimization
-• Team collaboration strategies
-• Productivity techniques and tips
-• Time management best practices
-
-What would you like to work on today?`
-    } else {
-      response = `I understand you're looking for productivity guidance. Here are some areas I can help with:
-
-• **Task Management**: Prioritization, organization, and tracking
-• **Time Management**: Scheduling, time-blocking, and efficiency
-• **Team Collaboration**: Communication, delegation, and coordination
-• **Productivity Systems**: GTD, Kanban, Agile methodologies
-• **Work-Life Balance**: Sustainable productivity practices
-
-Could you tell me more about your specific challenge or goal?`
+    if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 })
     }
+
+    // Get user context from database
+    const db = await getDatabase()
+    const userProfile = await db.collection("profiles").findOne({ userId })
+    const teamMembers = await db.collection("team_members").find({ 
+      $or: [{ userId }, { teamId: userId }] 
+    }).toArray()
+    const tasks = await db.collection("team_tasks").find({
+      $or: [{ assignedTo: userId }, { createdBy: userId }]
+    }).toArray()
+
+    // Build context for AI
+    const userName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : "User"
+    const teamSize = teamMembers.length
+    const taskCount = tasks.length
+    const completedTasks = tasks.filter(t => t.status === "completed").length
+    const pendingTasks = taskCount - completedTasks
+
+    const systemPrompt = `You are an advanced AI productivity assistant for SyncSphere, a professional task management and team collaboration platform. You're helping ${userName}.
+
+CONTEXT:
+- User: ${userName}
+- Team size: ${teamSize} members
+- Total tasks: ${taskCount} (${completedTasks} completed, ${pendingTasks} pending)
+- Platform: SyncSphere - Task Management & Team Collaboration
+
+CAPABILITIES:
+- Task management and prioritization strategies
+- Team collaboration and project management advice
+- Time management and productivity optimization
+- Workflow automation suggestions
+- Team communication strategies
+- Project planning and resource allocation
+- Analytics and performance insights
+- Custom solutions for specific business needs
+
+PERSONALITY:
+- Professional yet friendly
+- Actionable and practical advice
+- Encourage productivity and efficiency
+- Provide specific, detailed recommendations
+- Ask follow-up questions to better understand needs
+- Use bullet points and clear formatting
+- Be encouraging and supportive
+
+INSTRUCTIONS:
+- Always provide detailed, actionable advice
+- Suggest specific techniques and methodologies
+- Offer multiple solutions when possible
+- Ask clarifying questions to better help
+- Reference the user's context when relevant
+- Provide examples and step-by-step guidance
+- Be comprehensive but concise
+- Format responses with clear structure and bullet points
+
+Respond to user queries with detailed, professional productivity advice. Always aim to be helpful, practical, and encouraging.`
+
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: systemPrompt
+    })
+
+    const result = await model.generateContent(message)
+    const response = result.response.text()
+
+    // Log the interaction for future improvements
+    await db.collection("chat_logs").insertOne({
+      userId,
+      message,
+      response,
+      timestamp: new Date(),
+      context: {
+        teamSize,
+        taskCount,
+        completedTasks,
+        pendingTasks
+      }
+    })
 
     return NextResponse.json({ response })
   } catch (error) {
     console.error("Error in chat:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    
+    // Fallback response if AI fails
+    const fallbackResponse = `I'm here to help you with productivity and team management! I can assist with:
+
+• **Task Management**: Prioritization, organization, and tracking
+• **Team Collaboration**: Communication strategies and workflow optimization  
+• **Time Management**: Scheduling, time-blocking, and efficiency techniques
+• **Project Planning**: Resource allocation and milestone planning
+• **Productivity Systems**: GTD, Kanban, Agile, and custom methodologies
+
+What specific challenge would you like help with today?`
+
+    return NextResponse.json({ response: fallbackResponse })
   }
 }

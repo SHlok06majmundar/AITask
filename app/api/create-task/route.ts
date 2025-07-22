@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getDatabase } from "@/lib/mongodb"
+import { GoogleGenerativeAI } from "@google/generative-ai"
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "")
 
 export async function POST(request: Request) {
   try {
@@ -11,8 +14,8 @@ export async function POST(request: Request) {
 
     const { description } = await request.json()
 
-    // Parse the description and create structured tasks
-    const tasks = parseDescriptionToTasks(description)
+    // Use AI to parse the description and create structured tasks
+    const tasks = await parseDescriptionToTasks(description, userId)
 
     const db = await getDatabase()
     const createdTasks = []
@@ -49,125 +52,219 @@ export async function POST(request: Request) {
   }
 }
 
-function parseDescriptionToTasks(description: string) {
+async function parseDescriptionToTasks(description: string, userId: string) {
+  // Try AI-powered task breakdown first
+  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    try {
+      const prompt = `You are a professional project manager AI. Break down this project/task description into specific, actionable tasks.
+
+Project Description: "${description}"
+
+Please analyze this and create a detailed task breakdown. Return ONLY a JSON array of tasks with this exact format:
+[
+  {
+    "title": "Specific task title (max 60 characters)",
+    "description": "Detailed description of what needs to be done",
+    "priority": "high|medium|low",
+    "status": "todo",
+    "estimatedHours": 1-8
+  }
+]
+
+Guidelines:
+- Create 2-8 tasks depending on project complexity
+- Make tasks specific and actionable
+- Assign realistic priorities (high for critical/time-sensitive, medium for important, low for nice-to-have)
+- Each task should be completable in 1-8 hours
+- Include setup, execution, and review tasks where appropriate
+- For team projects, consider coordination and communication tasks
+- For technical projects, include planning, development, testing phases
+- Ensure logical sequence and dependencies
+
+Examples:
+- "Build inventory system" → Planning, Database design, Frontend development, Testing, Deployment
+- "Team meeting" → Agenda preparation, Invitations, Material preparation, Follow-up tasks
+- "Marketing campaign" → Research, Strategy, Content creation, Launch, Analysis`
+
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      const result = await model.generateContent(prompt)
+      let aiResponse = result.response.text()
+
+      // Clean up the response to extract JSON
+      aiResponse = aiResponse.replace(/```json\n?/, '').replace(/\n?```/, '').trim()
+      
+      try {
+        const aiTasks = JSON.parse(aiResponse)
+        if (Array.isArray(aiTasks) && aiTasks.length > 0) {
+          // Validate and sanitize AI-generated tasks
+          return aiTasks.map(task => ({
+            title: task.title?.substring(0, 60) || "Generated Task",
+            description: task.description || "AI-generated task description",
+            priority: ["high", "medium", "low"].includes(task.priority) ? task.priority : "medium",
+            status: "todo",
+            estimatedHours: typeof task.estimatedHours === 'number' ? Math.min(Math.max(task.estimatedHours, 1), 8) : 2
+          }))
+        }
+      } catch (parseError) {
+        console.error("Error parsing AI task breakdown:", parseError)
+        // Fall through to manual parsing
+      }
+    } catch (aiError) {
+      console.error("Error generating AI task breakdown:", aiError)
+      // Fall through to manual parsing
+    }
+  }
+
+  // Fallback to enhanced manual parsing
   const tasks = []
+  const lowerDesc = description.toLowerCase()
 
-  // Simple parsing logic - in a real app, this would be more sophisticated
-  if (description.toLowerCase().includes("presentation")) {
-    tasks.push({
-      title: "Create presentation outline",
-      description: "Structure the main points and flow of the presentation",
-      priority: "high",
-      status: "todo",
-    })
-
-    if (description.toLowerCase().includes("market analysis")) {
-      tasks.push({
-        title: "Conduct market analysis",
-        description: "Research and analyze current market trends and data",
+  // Enhanced keyword-based parsing
+  if (lowerDesc.includes("inventory") || lowerDesc.includes("stock") || lowerDesc.includes("warehouse")) {
+    tasks.push(
+      {
+        title: "Analyze Current Inventory System",
+        description: "Review existing inventory processes and identify gaps or inefficiencies",
         priority: "high",
         status: "todo",
-      })
-    }
-
-    if (description.toLowerCase().includes("performance") || description.toLowerCase().includes("metrics")) {
-      tasks.push({
-        title: "Compile performance metrics",
-        description: "Gather and organize team performance data",
+        estimatedHours: 3
+      },
+      {
+        title: "Design Database Schema",
+        description: "Create database structure for products, categories, suppliers, and stock levels",
+        priority: "high", 
+        status: "todo",
+        estimatedHours: 4
+      },
+      {
+        title: "Develop Frontend Interface",
+        description: "Build user interface for inventory management, search, and reporting",
         priority: "medium",
         status: "todo",
-      })
-    }
-
-    if (description.toLowerCase().includes("budget")) {
-      tasks.push({
-        title: "Prepare budget overview",
-        description: "Create budget summary and financial projections",
+        estimatedHours: 6
+      },
+      {
+        title: "Implement Backend Logic",
+        description: "Create APIs for CRUD operations, stock tracking, and notifications",
         priority: "medium",
         status: "todo",
-      })
-    }
-
-    tasks.push({
-      title: "Design presentation slides",
-      description: "Create visual slides with charts and graphics",
-      priority: "medium",
-      status: "todo",
-    })
-
-    tasks.push({
-      title: "Practice presentation",
-      description: "Rehearse the presentation and time the delivery",
-      priority: "low",
-      status: "todo",
-    })
-  } else if (description.toLowerCase().includes("meeting")) {
-    tasks.push({
-      title: "Prepare meeting agenda",
-      description: "Create structured agenda with key discussion points",
-      priority: "high",
-      status: "todo",
-    })
-
-    tasks.push({
-      title: "Send meeting invitations",
-      description: "Invite participants and share meeting details",
-      priority: "medium",
-      status: "todo",
-    })
-
-    tasks.push({
-      title: "Prepare meeting materials",
-      description: "Gather documents and resources needed for the meeting",
-      priority: "medium",
-      status: "todo",
-    })
-  } else if (description.toLowerCase().includes("project")) {
-    tasks.push({
-      title: "Define project scope",
-      description: "Clearly outline project objectives and deliverables",
-      priority: "high",
-      status: "todo",
-    })
-
-    tasks.push({
-      title: "Create project timeline",
-      description: "Develop detailed timeline with milestones and deadlines",
-      priority: "high",
-      status: "todo",
-    })
-
-    tasks.push({
-      title: "Assign team roles",
-      description: "Delegate responsibilities to team members",
-      priority: "medium",
-      status: "todo",
-    })
+        estimatedHours: 5
+      },
+      {
+        title: "Test System Integration",
+        description: "Perform comprehensive testing of all inventory features and workflows",
+        priority: "high",
+        status: "todo",
+        estimatedHours: 3
+      },
+      {
+        title: "Deploy and Train Users",
+        description: "Deploy system to production and train team members on new processes",
+        priority: "medium",
+        status: "todo",
+        estimatedHours: 2
+      }
+    )
+  } else if (lowerDesc.includes("team") && (lowerDesc.includes("member") || lowerDesc.includes("divide") || lowerDesc.includes("assign"))) {
+    tasks.push(
+      {
+        title: "Define Project Scope and Requirements",
+        description: "Clearly outline project goals, deliverables, and technical requirements",
+        priority: "high",
+        status: "todo",
+        estimatedHours: 2
+      },
+      {
+        title: "Create Work Breakdown Structure",
+        description: "Break down project into modules and assign to frontend, backend, and full-stack roles",
+        priority: "high",
+        status: "todo", 
+        estimatedHours: 3
+      },
+      {
+        title: "Set Up Development Environment",
+        description: "Configure shared repositories, development tools, and deployment pipelines",
+        priority: "medium",
+        status: "todo",
+        estimatedHours: 2
+      },
+      {
+        title: "Establish Communication Protocols",
+        description: "Set up regular check-ins, progress tracking, and collaboration workflows",
+        priority: "medium",
+        status: "todo",
+        estimatedHours: 1
+      },
+      {
+        title: "Create Integration Plan",
+        description: "Plan how frontend, backend, and full-stack components will integrate",
+        priority: "high",
+        status: "todo",
+        estimatedHours: 2
+      }
+    )
+  } else if (lowerDesc.includes("presentation") || lowerDesc.includes("demo")) {
+    tasks.push(
+      {
+        title: "Research and Gather Content",
+        description: "Collect relevant data, statistics, and supporting materials for the presentation",
+        priority: "high",
+        status: "todo",
+        estimatedHours: 3
+      },
+      {
+        title: "Create Presentation Outline",
+        description: "Structure the flow and key points of the presentation",
+        priority: "high",
+        status: "todo",
+        estimatedHours: 2
+      },
+      {
+        title: "Design Visual Slides",
+        description: "Create engaging slides with charts, graphics, and visual elements",
+        priority: "medium",
+        status: "todo",
+        estimatedHours: 4
+      },
+      {
+        title: "Practice and Rehearse",
+        description: "Practice delivery, timing, and prepare for potential questions",
+        priority: "medium",
+        status: "todo",
+        estimatedHours: 2
+      }
+    )
   } else {
-    // Generic task creation
-    const sentences = description.split(/[.!?]+/).filter((s) => s.trim().length > 0)
-
-    sentences.forEach((sentence, index) => {
-      if (sentence.trim().length > 10) {
+    // Generic intelligent parsing
+    const sentences = description.split(/[.!?]+/).filter(s => s.trim().length > 10)
+    
+    if (sentences.length > 1) {
+      sentences.forEach((sentence, index) => {
         tasks.push({
           title: sentence.trim().substring(0, 50) + (sentence.length > 50 ? "..." : ""),
           description: sentence.trim(),
           priority: index === 0 ? "high" : "medium",
           status: "todo",
+          estimatedHours: 2
         })
-      }
-    })
-
-    // If no sentences found, create a single task
-    if (tasks.length === 0) {
+      })
+    } else {
+      // Single comprehensive task
       tasks.push({
         title: description.substring(0, 50) + (description.length > 50 ? "..." : ""),
         description: description,
-        priority: "medium",
+        priority: "high",
         status: "todo",
+        estimatedHours: 3
       })
     }
   }
 
-  return tasks
+  return tasks.length > 0 ? tasks : [{
+    title: "Complete Task",
+    description: description,
+    priority: "medium", 
+    status: "todo",
+    estimatedHours: 2
+  }]
 }

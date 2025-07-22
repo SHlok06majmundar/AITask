@@ -12,6 +12,7 @@
     "@ai-sdk/google": "latest",
     "@aws-sdk/credential-providers": "latest",
     "@clerk/nextjs": "latest",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.9.0",
     "@mongodb-js/zstd": "latest",
     "@radix-ui/react-accordion": "latest",

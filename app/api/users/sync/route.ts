@@ -29,6 +29,28 @@ export async function POST() {
       }
 
       await db.collection("profiles").insertOne(profile)
+
+      // Check if user already has a team member record
+      const existingTeamMember = await db.collection("team_members").findOne({ userId })
+      
+      if (!existingTeamMember) {
+        // Create team member record with owner role for new users
+        const teamMember = {
+          userId,
+          email: user.emailAddresses[0]?.emailAddress || "",
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          imageUrl: user.imageUrl || "/placeholder.svg",
+          role: "owner",
+          status: "active",
+          joinedAt: new Date().toISOString(),
+          teamId: userId,
+          teamOwnerId: userId,
+        }
+
+        await db.collection("team_members").insertOne(teamMember)
+      }
+
       return NextResponse.json({ message: "Profile created", profile })
     }
 
@@ -45,6 +67,27 @@ export async function POST() {
         },
       },
     )
+
+    // Also check if team member record exists for existing users
+    const existingTeamMember = await db.collection("team_members").findOne({ userId })
+    
+    if (!existingTeamMember) {
+      // Create team member record with owner role for existing users who don't have one
+      const teamMember = {
+        userId,
+        email: user.emailAddresses[0]?.emailAddress || "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        imageUrl: user.imageUrl || "/placeholder.svg",
+        role: "owner",
+        status: "active",
+        joinedAt: new Date().toISOString(),
+        teamId: userId, // User's own team
+        teamOwnerId: userId,
+      }
+
+      await db.collection("team_members").insertOne(teamMember)
+    }
 
     return NextResponse.json({ message: "Profile updated" })
   } catch (error) {

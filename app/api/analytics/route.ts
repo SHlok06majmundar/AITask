@@ -54,6 +54,50 @@ export async function GET() {
       Math.max(0, completionRate * 0.6 + Math.max(0, 100 - (overdueTasks / totalTasks) * 100) * 0.4),
     )
 
+    // Fetch team tasks for time tracking data
+    const teamTasks = await db
+      .collection("team_tasks")
+      .find({
+        $or: [{ assignedTo: userId }, { createdBy: userId }],
+      })
+      .toArray()
+
+    // Calculate real time tracking data
+    let totalTrackedMinutes = 0
+    let totalTrackedSessions = 0
+    let productiveHours = Array(24).fill(0)
+    
+    teamTasks.forEach((task: any) => {
+      if (task.timeTracking && task.timeTracking.sessions) {
+        task.timeTracking.sessions.forEach((session: any) => {
+          totalTrackedMinutes += session.duration || 0
+          totalTrackedSessions++
+          
+          // Track productive hours based on session timestamps
+          if (session.date) {
+            const sessionHour = new Date(session.date).getHours()
+            productiveHours[sessionHour]++
+          }
+        })
+      }
+    })
+
+    const totalTrackedHours = Math.round((totalTrackedMinutes / 60) * 10) / 10
+    const averageDailyHours = totalTrackedSessions > 0 ? Math.round((totalTrackedHours / 7) * 10) / 10 : 0 // Assume week average
+    const mostProductiveHour = productiveHours.indexOf(Math.max(...productiveHours)) || 10 // Default to 10 AM if no data
+    
+    // Calculate efficiency based on estimated vs actual time
+    let totalEstimated = 0
+    let totalActual = 0
+    teamTasks.forEach((task: any) => {
+      if (task.timeTracking) {
+        totalEstimated += task.timeTracking.estimated || 0
+        totalActual += task.timeTracking.actual || 0
+      }
+    })
+    
+    const timeEfficiency = totalEstimated > 0 ? Math.round((totalEstimated / Math.max(totalActual, 1)) * 100) : 85
+
     // Generate trend data (simulated for demo)
     const dailyTrends = Array.from({ length: 7 }, (_, i) => {
       const date = new Date()
@@ -120,10 +164,10 @@ export async function GET() {
         completionRate,
       },
       timeTracking: {
-        totalHours: Math.floor(Math.random() * 50) + 100,
-        averageDaily: Math.round((Math.random() * 3 + 6) * 10) / 10, // 6-9 hours
-        mostProductiveHour: Math.floor(Math.random() * 4) + 9, // 9-12
-        efficiency: Math.floor(Math.random() * 15) + 80,
+        totalHours: totalTrackedHours,
+        averageDaily: averageDailyHours,
+        mostProductiveHour: mostProductiveHour,
+        efficiency: timeEfficiency,
       },
       trends: {
         daily: dailyTrends,

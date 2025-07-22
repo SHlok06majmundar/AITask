@@ -23,9 +23,8 @@ export async function GET() {
     const currentUserProfile = await db.collection("profiles").findOne({ userId })
 
     if (currentUserProfile && members.length === 0) {
-      // Add current user as team owner
+      // Add current user as team owner and persist to database
       const ownerMember = {
-        _id: currentUserProfile._id,
         userId: currentUserProfile.userId,
         email: currentUserProfile.email,
         firstName: currentUserProfile.firstName || "User",
@@ -35,9 +34,13 @@ export async function GET() {
         status: "active",
         joinedAt: currentUserProfile.createdAt || new Date().toISOString(),
         teamId: userId,
+        teamOwnerId: userId,
       }
 
-      return NextResponse.json([ownerMember])
+      // Insert into database to persist the owner record
+      const result = await db.collection("team_members").insertOne(ownerMember)
+
+      return NextResponse.json([{ ...ownerMember, _id: result.insertedId }])
     }
 
     return NextResponse.json(members)
