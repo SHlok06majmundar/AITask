@@ -167,7 +167,15 @@ export default function TeamPage() {
   const isAdmin = currentUserRole === "admin" || currentUserRole === "owner"
 
   const sendInvitation = async () => {
-    if (!selectedUser) return
+    if (!selectedUser) {
+      toast.error("Please select a user to invite")
+      return
+    }
+
+    if (!selectedUser.email || !selectedUser.firstName || !selectedUser.lastName) {
+      toast.error("Selected user is missing required information")
+      return
+    }
 
     try {
       const response = await fetch("/api/team/invite", {
@@ -175,8 +183,10 @@ export default function TeamPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toUserId: selectedUser.userId,
+          toUserEmail: selectedUser.email,
+          toUserName: `${selectedUser.firstName} ${selectedUser.lastName}`,
           role: inviteForm.role,
-          message: inviteForm.message,
+          message: inviteForm.message || `Join my team as ${inviteForm.role}!`,
         }),
       })
 
@@ -191,6 +201,7 @@ export default function TeamPage() {
         toast.error(error.error || "Failed to send invitation")
       }
     } catch (error) {
+      console.error("Error sending invitation:", error)
       toast.error("Failed to send invitation")
     }
   }

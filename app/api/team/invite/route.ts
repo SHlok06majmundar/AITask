@@ -12,10 +12,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { toUserId, toUserEmail, toUserName, role = "member", message } = await request.json()
+    const body = await request.json()
+    const { toUserId, toUserEmail, toUserName, role = "member", message } = body
+
+    console.log("Invite request body:", { toUserId, toUserEmail, toUserName, role, message })
 
     if (!toUserId || !toUserEmail || !toUserName) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      console.log("Missing fields:", { 
+        hasToUserId: !!toUserId, 
+        hasToUserEmail: !!toUserEmail, 
+        hasToUserName: !!toUserName 
+      })
+      return NextResponse.json({ 
+        error: "Missing required fields: toUserId, toUserEmail, and toUserName are required" 
+      }, { status: 400 })
     }
 
     const db = await getDatabase()
