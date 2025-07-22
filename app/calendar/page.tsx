@@ -104,7 +104,7 @@ export default function CalendarPage() {
 
   // Handle event creation/update
   const handleSaveEvent = async () => {
-    if (!formData.title.trim() || !formData.start || !formData.end) {
+    if (!formData.title.trim() || !formData.start.trim() || !formData.end.trim()) {
       toast.error("Please fill in all required fields")
       return
     }
