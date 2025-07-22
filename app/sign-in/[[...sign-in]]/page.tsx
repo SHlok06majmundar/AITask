@@ -2,11 +2,11 @@ import { SignIn } from "@clerk/nextjs"
 
 export default function Page() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to SyncSphere</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Sign in to manage your tasks with AI</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">Welcome to SyncSphere</h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Sign in to your account to continue</p>
         </div>
         <SignIn
           appearance={{

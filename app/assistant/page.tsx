@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 import { Sidebar } from "@/components/sidebar"
@@ -12,29 +14,33 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Bot, Send, Lightbulb, Clock, Users, TrendingUp, Sparkles, MessageSquare, Zap } from "lucide-react"
-import { useChat } from "ai/react"
+import { MessageSquare, Send, Lightbulb, Clock, Users, TrendingUp, MessageCircle, Zap, Target } from "lucide-react"
+import { toast } from "sonner"
 
-interface AIInsight {
+interface Insight {
   type: "productivity" | "task" | "team" | "schedule"
   title: string
   description: string
   action?: string
 }
 
-export default function AIPage() {
+interface ChatMessage {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  timestamp: Date
+}
+
+export default function AssistantPage() {
   const { user } = useUser()
-  const [insights, setInsights] = useState<AIInsight[]>([])
+  const [insights, setInsights] = useState<Insight[]>([])
   const [taskDescription, setTaskDescription] = useState("")
   const [loading, setLoading] = useState(true)
-
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/ai/chat",
-    initialMessages: [
-      {
-        id: "welcome",
-        role: "assistant",
-        content: `Hello ${user?.firstName || "there"}! I'm your AI productivity assistant. I can help you with:
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content: `Hello ${user?.firstName || "there"}! I'm your productivity assistant. I can help you with:
 
 • Task management and prioritization
 • Schedule optimization
@@ -42,19 +48,21 @@ export default function AIPage() {
 • Productivity tips and strategies
 
 How can I help you be more productive today?`,
-      },
-    ],
-  })
+      timestamp: new Date(),
+    },
+  ])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   const fetchInsights = async () => {
     try {
-      const response = await fetch("/api/ai/insights")
+      const response = await fetch("/api/insights")
       if (response.ok) {
         const data = await response.json()
         setInsights(data)
       }
     } catch (error) {
-      console.error("Error fetching AI insights:", error)
+      console.error("Error fetching insights:", error)
     } finally {
       setLoading(false)
     }
@@ -63,27 +71,71 @@ How can I help you be more productive today?`,
   useEffect(() => {
     fetchInsights()
 
-    // Refresh insights every 30 seconds
+    // Real-time updates every 30 seconds
     const interval = setInterval(fetchInsights, 30000)
     return () => clearInterval(interval)
   }, [])
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim()) return
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input,
+      timestamp: new Date(),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const assistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.response,
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, assistantMessage])
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+      toast.error("Failed to send message")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleCreateSmartTask = async () => {
     if (!taskDescription.trim()) return
 
     try {
-      const response = await fetch("/api/ai/create-task", {
+      const response = await fetch("/api/create-task", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description: taskDescription }),
       })
 
       if (response.ok) {
+        const data = await response.json()
         setTaskDescription("")
-        // Show success message
+        toast.success(`Created ${data.tasksCreated} tasks successfully!`)
+      } else {
+        toast.error("Failed to create tasks")
       }
     } catch (error) {
-      console.error("Error creating smart task:", error)
+      console.error("Error creating task:", error)
+      toast.error("Failed to create tasks")
     }
   }
 
@@ -91,7 +143,7 @@ How can I help you be more productive today?`,
     {
       icon: Lightbulb,
       title: "Optimize My Day",
-      description: "Get AI suggestions for task prioritization",
+      description: "Get suggestions for task prioritization",
       action: "How should I prioritize my tasks today?",
     },
     {
@@ -115,7 +167,7 @@ How can I help you be more productive today?`,
   ]
 
   const handleQuickAction = (action: string) => {
-    handleInputChange({ target: { value: action } } as any)
+    setInput(action)
   }
 
   return (
@@ -126,18 +178,18 @@ How can I help you be more productive today?`,
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
           <div className="container mx-auto px-6 py-8">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">AI Assistant</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Productivity Assistant</h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Your intelligent productivity companion powered by advanced AI
+                Your intelligent productivity companion for better task management
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* AI Chat Interface */}
+              {/* Chat Interface */}
               <div className="lg:col-span-2">
                 <Tabs defaultValue="chat" className="space-y-6">
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="chat">AI Chat</TabsTrigger>
+                    <TabsTrigger value="chat">Assistant Chat</TabsTrigger>
                     <TabsTrigger value="create">Smart Task Creator</TabsTrigger>
                   </TabsList>
 
@@ -146,12 +198,12 @@ How can I help you be more productive today?`,
                       <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
                           <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                            <Bot className="h-5 w-5 text-white" />
+                            <MessageCircle className="h-5 w-5 text-white" />
                           </div>
-                          <span>AI Chat</span>
+                          <span>Productivity Chat</span>
                           <Badge variant="secondary" className="ml-auto">
-                            <Sparkles className="h-3 w-3 mr-1" />
-                            Gemini Powered
+                            <Target className="h-3 w-3 mr-1" />
+                            Smart Assistant
                           </Badge>
                         </CardTitle>
                       </CardHeader>
@@ -170,7 +222,7 @@ How can I help you be more productive today?`,
                                 >
                                   <Avatar className="h-8 w-8">
                                     <AvatarFallback className="text-sm">
-                                      {message.role === "assistant" ? <Bot className="h-4 w-4" /> : "U"}
+                                      {message.role === "assistant" ? <MessageCircle className="h-4 w-4" /> : "U"}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div
@@ -190,7 +242,7 @@ How can I help you be more productive today?`,
                                 <div className="flex items-start space-x-3">
                                   <Avatar className="h-8 w-8">
                                     <AvatarFallback className="text-sm">
-                                      <Bot className="h-4 w-4" />
+                                      <MessageCircle className="h-4 w-4" />
                                     </AvatarFallback>
                                   </Avatar>
                                   <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
@@ -213,10 +265,10 @@ How can I help you be more productive today?`,
                         </ScrollArea>
 
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                          <form onSubmit={handleSubmit} className="flex space-x-2">
+                          <form onSubmit={handleSendMessage} className="flex space-x-2">
                             <Input
                               value={input}
-                              onChange={handleInputChange}
+                              onChange={(e) => setInput(e.target.value)}
                               placeholder="Ask me anything about productivity, tasks, or team management..."
                               disabled={isLoading}
                               className="flex-1"
@@ -238,7 +290,7 @@ How can I help you be more productive today?`,
                           <span>Smart Task Creator</span>
                         </CardTitle>
                         <CardDescription>
-                          Describe your task in natural language and let AI create structured tasks for you
+                          Describe your task in natural language and get structured tasks created automatically
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -249,8 +301,8 @@ How can I help you be more productive today?`,
                           className="min-h-[120px]"
                         />
                         <Button onClick={handleCreateSmartTask} disabled={!taskDescription.trim()} className="w-full">
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Create Smart Tasks
+                          <Target className="h-4 w-4 mr-2" />
+                          Create Structured Tasks
                         </Button>
                       </CardContent>
                     </Card>
@@ -258,13 +310,13 @@ How can I help you be more productive today?`,
                 </Tabs>
               </div>
 
-              {/* AI Insights & Quick Actions */}
+              {/* Insights & Quick Actions */}
               <div className="space-y-6">
                 {/* Quick Actions */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Quick Actions</CardTitle>
-                    <CardDescription>Get instant AI assistance</CardDescription>
+                    <CardDescription>Get instant productivity assistance</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -287,12 +339,12 @@ How can I help you be more productive today?`,
                   </CardContent>
                 </Card>
 
-                {/* AI Insights */}
+                {/* Productivity Insights */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Zap className="h-5 w-5" />
-                      <span>AI Insights</span>
+                      <span>Productivity Insights</span>
                     </CardTitle>
                     <CardDescription>Personalized recommendations</CardDescription>
                   </CardHeader>
@@ -345,16 +397,16 @@ How can I help you be more productive today?`,
                   </CardContent>
                 </Card>
 
-                {/* AI Status */}
+                {/* System Status */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>AI Status</CardTitle>
+                    <CardTitle>System Status</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Model</span>
-                        <Badge variant="secondary">Gemini 1.5</Badge>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Assistant</span>
+                        <Badge variant="secondary">Advanced</Badge>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Status</span>
