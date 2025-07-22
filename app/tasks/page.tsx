@@ -1,45 +1,52 @@
 "use client"
+
+import { useEffect, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Sidebar } from "@/components/sidebar"
 import { TaskBoard } from "@/components/task-board"
-import { LoadingSpinner } from "@/components/loading-spinner"
+import { CreateTaskDialog } from "@/components/create-task-dialog"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 export default function TasksPage() {
-  const { isLoaded, isSignedIn } = useUser()
+  const { user, isLoaded } = useUser()
   const router = useRouter()
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !user) {
       router.push("/sign-in")
     }
-  }, [isLoaded, isSignedIn, router])
+  }, [isLoaded, user, router])
 
   if (!isLoaded) {
-    return <LoadingSpinner />
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
-  if (!isSignedIn) {
-    return <LoadingSpinner />
+  if (!user) {
+    return null
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
-          <div className="container mx-auto px-6 py-8">
-            <div className="mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tasks</h1>
-              <p className="text-gray-600 dark:text-gray-400">Manage and organize your tasks</p>
-            </div>
-            <TaskBoard />
-          </div>
-        </main>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Tasks</h1>
+          <p className="text-muted-foreground">Manage your team's tasks and projects</p>
+        </div>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Task
+        </Button>
       </div>
+
+      <TaskBoard />
+
+      <CreateTaskDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} />
     </div>
   )
 }

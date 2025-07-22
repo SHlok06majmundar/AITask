@@ -1,15 +1,16 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { getDatabase } from "@/lib/mongodb"
+import { connectToDatabase } from "@/lib/mongodb"
 
 export async function GET() {
   try {
-    const { userId } = await auth()
+    const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const db = await getDatabase()
+    const { db } = await connectToDatabase()
+
     const notifications = await db
       .collection("notifications")
       .find({ userId })
@@ -20,34 +21,37 @@ export async function GET() {
     return NextResponse.json(notifications)
   } catch (error) {
     console.error("Error fetching notifications:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth()
+    const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { title, message, type = "info" } = await request.json()
+    const { type, title, message, targetUserId } = await request.json()
+    const { db } = await connectToDatabase()
 
-    const db = await getDatabase()
     const notification = {
-      userId,
+      userId: targetUserId || userId,
+      type,
       title,
       message,
-      type,
       read: false,
       createdAt: new Date(),
     }
 
-    await db.collection("notifications").insertOne(notification)
+    const result = await db.collection("notifications").insertOne(notification)
 
-    return NextResponse.json({ message: "Notification created" })
+    return NextResponse.json({
+      success: true,
+      notificationId: result.insertedId,
+    })
   } catch (error) {
     console.error("Error creating notification:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
