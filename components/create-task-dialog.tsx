@@ -3,14 +3,14 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useRealtimeTasks } from "@/lib/hooks/use-realtime-tasks"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useRealtimeTasks } from "@/lib/hooks/use-realtime-tasks"
-import { Loader2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import type { Task } from "@/lib/mongodb"
 
 interface CreateTaskDialogProps {
   open: boolean
@@ -18,38 +18,41 @@ interface CreateTaskDialogProps {
 }
 
 export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
-  const [dueDate, setDueDate] = useState("")
-  const [loading, setLoading] = useState(false)
-
   const { createTask } = useRealtimeTasks()
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    priority: "medium" as Task["priority"],
+    status: "todo" as Task["status"],
+    dueDate: "",
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!formData.title.trim()) return
 
-    setLoading(true)
+    setIsLoading(true)
     try {
       await createTask({
-        title: title.trim(),
-        description: description.trim() || null,
-        priority,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        status: "todo",
+        ...formData,
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
       })
 
       // Reset form
-      setTitle("")
-      setDescription("")
-      setPriority("medium")
-      setDueDate("")
+      setFormData({
+        title: "",
+        description: "",
+        priority: "medium",
+        status: "todo",
+        dueDate: "",
+      })
+
       onOpenChange(false)
     } catch (error) {
       console.error("Failed to create task:", error)
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
@@ -61,11 +64,11 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">Title</Label>
             <Input
               id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Enter task title..."
               required
             />
@@ -75,8 +78,8 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Enter task description..."
               rows={3}
             />
@@ -85,7 +88,10 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
-              <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
+              <Select
+                value={formData.priority}
+                onValueChange={(value: Task["priority"]) => setFormData({ ...formData, priority: value })}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -98,18 +104,40 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date</Label>
-              <Input id="dueDate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value: Task["status"]) => setFormData({ ...formData, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="review">Review</SelectItem>
+                  <SelectItem value="done">Done</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="space-y-2">
+            <Label htmlFor="dueDate">Due Date</Label>
+            <Input
+              id="dueDate"
+              type="date"
+              value={formData.dueDate}
+              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !title.trim()}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Task
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Creating..." : "Create Task"}
             </Button>
           </div>
         </form>

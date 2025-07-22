@@ -12,30 +12,45 @@ export async function GET() {
     const profilesCollection = await getCollection("profiles")
     const profile = await profilesCollection.findOne({ userId })
 
-    if (!profile) {
-      // Create profile if it doesn't exist
-      const user = await currentUser()
-      if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 })
-      }
-
-      const newProfile = {
-        userId: user.id,
-        email: user.emailAddresses[0]?.emailAddress || "",
-        fullName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || null,
-        imageUrl: user.imageUrl || null,
-        role: "member",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-
-      await profilesCollection.insertOne(newProfile)
-      return NextResponse.json(newProfile)
-    }
-
     return NextResponse.json(profile)
   } catch (error) {
     console.error("Error fetching profile:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function POST() {
+  try {
+    const { userId } = auth()
+    const user = await currentUser()
+
+    if (!userId || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const profilesCollection = await getCollection("profiles")
+
+    const existingProfile = await profilesCollection.findOne({ userId })
+    if (existingProfile) {
+      return NextResponse.json(existingProfile)
+    }
+
+    const newProfile = {
+      userId,
+      email: user.emailAddresses[0]?.emailAddress || "",
+      fullName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      imageUrl: user.imageUrl,
+      role: "member",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    const result = await profilesCollection.insertOne(newProfile)
+    const createdProfile = await profilesCollection.findOne({ _id: result.insertedId })
+
+    return NextResponse.json(createdProfile, { status: 201 })
+  } catch (error) {
+    console.error("Error creating profile:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

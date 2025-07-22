@@ -1,11 +1,10 @@
 "use client"
 
 import { useUser } from "@clerk/nextjs"
-import { RedirectToSignIn } from "@clerk/nextjs"
-import { DashboardHeader } from "@/components/dashboard-header"
+import { redirect } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
+import { DashboardHeader } from "@/components/dashboard-header"
 import { TaskBoard } from "@/components/task-board"
-import { AIAssistant } from "@/components/ai-assistant"
 import { QuickStats } from "@/components/quick-stats"
 import { RecentActivity } from "@/components/recent-activity"
 import { LoadingSpinner } from "@/components/loading-spinner"
@@ -14,15 +13,11 @@ export default function Dashboard() {
   const { isLoaded, isSignedIn } = useUser()
 
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (!isSignedIn) {
-    return <RedirectToSignIn />
+    redirect("/sign-in")
   }
 
   return (
@@ -32,22 +27,16 @@ export default function Dashboard() {
         <DashboardHeader />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
           <div className="container mx-auto px-6 py-8">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-              <div className="lg:col-span-3">
-                <QuickStats />
-              </div>
-              <div className="lg:col-span-1">
-                <AIAssistant />
-              </div>
+            <div className="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
+              <QuickStats />
             </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2">
+            <div className="grid gap-6 mb-8 md:grid-cols-2">
+              <div className="md:col-span-2">
                 <TaskBoard />
               </div>
-              <div className="xl:col-span-1">
-                <RecentActivity />
-              </div>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <RecentActivity />
             </div>
           </div>
         </main>

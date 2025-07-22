@@ -1,8 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
+import { useUser } from "@clerk/nextjs"
+import { redirect } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
+import { DashboardHeader } from "@/components/dashboard-header"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -87,6 +90,7 @@ const quickActions = [
 ]
 
 export default function AIPage() {
+  const { isLoaded, isSignedIn } = useUser()
   const [message, setMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [taskDescription, setTaskDescription] = useState("")
@@ -110,6 +114,14 @@ export default function AIPage() {
     if (!taskDescription.trim()) return
     // Simulate AI task creation
     setTaskDescription("")
+  }
+
+  if (!isLoaded) {
+    return <LoadingSpinner />
+  }
+
+  if (!isSignedIn) {
+    redirect("/sign-in")
   }
 
   return (

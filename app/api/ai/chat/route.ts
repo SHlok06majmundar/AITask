@@ -1,27 +1,32 @@
-import { streamText } from "ai"
-import { google } from "@ai-sdk/google"
+import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
+import { generateText } from "ai"
+import { google } from "@ai-sdk/google"
 
-export async function POST(req: Request) {
-  const { userId } = auth()
-  if (!userId) {
-    return new Response("Unauthorized", { status: 401 })
+export async function POST(request: NextRequest) {
+  try {
+    const { userId } = auth()
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { message } = await request.json()
+
+    if (!message) {
+      return NextResponse.json({ error: "Message is required" }, { status: 400 })
+    }
+
+    const { text } = await generateText({
+      model: google("gemini-1.5-flash"),
+      system: `You are a helpful AI assistant for SyncSphere, a task management platform. 
+      Help users with productivity tips, task organization, time management, and team collaboration. 
+      Keep responses concise and actionable. Focus on practical advice for remote teams.`,
+      prompt: message,
+    })
+
+    return NextResponse.json({ response: text })
+  } catch (error) {
+    console.error("AI Chat Error:", error)
+    return NextResponse.json({ error: "Failed to generate response" }, { status: 500 })
   }
-
-  const { messages } = await req.json()
-
-  const result = await streamText({
-    model: google("gemini-1.5-pro"),
-    system: `You are SyncSphere's AI assistant, a smart productivity companion for remote teams. You help with:
-
-1. Task Management: Break down complex tasks, suggest priorities, and optimize workflows
-2. Schedule Planning: Organize daily schedules based on deadlines and productivity patterns  
-3. Team Insights: Analyze team performance and suggest improvements
-4. Natural Language Processing: Convert natural language descriptions into structured tasks
-
-Be helpful, concise, and actionable. Use emojis and formatting to make responses engaging. Focus on productivity and collaboration.`,
-    messages,
-  })
-
-  return result.toAIStreamResponse()
 }

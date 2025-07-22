@@ -1,197 +1,169 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Bot, Send, Lightbulb, Clock, Users, TrendingUp, Sparkles } from "lucide-react"
+import { Send, Bot, User } from "lucide-react"
 
-const suggestions = [
-  {
-    icon: Lightbulb,
-    title: "Task Optimization",
-    description: "Break down complex tasks into smaller subtasks",
-    action: "Optimize my tasks",
-  },
-  {
-    icon: Clock,
-    title: "Schedule Planning",
-    description: "Reorganize tasks for better productivity",
-    action: "Plan my day",
-  },
-  {
-    icon: Users,
-    title: "Team Insights",
-    description: "Analyze team performance and bottlenecks",
-    action: "Show team insights",
-  },
-  {
-    icon: TrendingUp,
-    title: "Productivity Tips",
-    description: "Get personalized productivity recommendations",
-    action: "Get tips",
-  },
-]
-
-const recentMessages = [
-  {
-    type: "ai",
-    message: "I noticed you have 3 high-priority tasks due today. Would you like me to help prioritize them?",
-    time: "2 min ago",
-  },
-  {
-    type: "user",
-    message: "Yes, please help me organize my tasks for today",
-    time: "5 min ago",
-  },
-  {
-    type: "ai",
-    message:
-      "Based on your calendar, I recommend starting with the API integration task since you have a 2-hour block free this morning.",
-    time: "5 min ago",
-  },
-]
+interface Message {
+  id: string
+  content: string
+  role: "user" | "assistant"
+  timestamp: Date
+}
 
 export function AIAssistant() {
-  const [message, setMessage] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      content:
+        "Hello! I'm your AI assistant. I can help you with task management, productivity tips, and team collaboration. How can I assist you today?",
+      role: "assistant",
+      timestamp: new Date(),
+    },
+  ])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return
+  const sendMessage = async () => {
+    if (!input.trim()) return
 
-    setIsTyping(true)
-    // Simulate AI response
-    setTimeout(() => {
-      setIsTyping(false)
-    }, 2000)
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: input,
+      role: "user",
+      timestamp: new Date(),
+    }
 
-    setMessage("")
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
+      })
+
+      const data = await response.json()
+
+      if (data.response) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data.response,
+          role: "assistant",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, assistantMessage])
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleSuggestionClick = (action: string) => {
-    setMessage(action)
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
   }
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-            <Bot className="h-4 w-4 text-white" />
-          </div>
-          <span>AI Assistant</span>
-          <Badge variant="secondary" className="ml-auto">
-            <Sparkles className="h-3 w-3 mr-1" />
-            Smart
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Quick Suggestions */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Quick Actions</h4>
-          <div className="grid grid-cols-1 gap-2">
-            {suggestions.map((suggestion, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                className="justify-start h-auto p-3 text-left bg-transparent"
-                onClick={() => handleSuggestionClick(suggestion.action)}
-              >
-                <suggestion.icon className="h-4 w-4 mr-2 flex-shrink-0" />
-                <div>
-                  <div className="font-medium text-xs">{suggestion.title}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{suggestion.description}</div>
-                </div>
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Chat Messages */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Recent Conversation</h4>
-          <ScrollArea className="h-48 w-full rounded-md border p-3">
-            <div className="space-y-3">
-              {recentMessages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`flex items-start space-x-2 max-w-[80%] ${msg.type === "user" ? "flex-row-reverse space-x-reverse" : ""}`}
-                  >
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">
-                        {msg.type === "ai" ? <Bot className="h-3 w-3" /> : "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div
-                      className={`rounded-lg p-2 text-xs ${
-                        msg.type === "user"
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                      }`}
-                    >
-                      <p>{msg.message}</p>
-                      <p
-                        className={`text-xs mt-1 opacity-70 ${msg.type === "user" ? "text-blue-100" : "text-gray-500"}`}
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      <div className="p-6">
+        <Card className="h-[calc(100vh-12rem)]">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Bot className="mr-2 h-5 w-5" />
+              AI Assistant
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col h-full p-0">
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`flex max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                      <div className={`flex-shrink-0 ${message.role === "user" ? "ml-2" : "mr-2"}`}>
+                        {message.role === "user" ? (
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <User className="w-4 h-4 text-white" />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                            <Bot className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className={`rounded-lg p-3 ${
+                          message.role === "user"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+                        }`}
                       >
-                        {msg.time}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="flex items-start space-x-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">
-                        <Bot className="h-3 w-3" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        />
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        />
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            message.role === "user" ? "text-blue-100" : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="flex">
+                      <div className="mr-2">
+                        <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
+                      </div>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: "0.1s" }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: "0.2s" }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex space-x-2">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask me anything about productivity, tasks, or team management..."
+                  disabled={isLoading}
+                />
+                <Button onClick={sendMessage} disabled={isLoading || !input.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </ScrollArea>
-        </div>
-
-        {/* Message Input */}
-        <div className="flex space-x-2">
-          <Input
-            placeholder="Ask AI anything..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-            className="flex-1"
-          />
-          <Button size="sm" onClick={handleSendMessage} disabled={!message.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* AI Status */}
-        <div className="flex items-center justify-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span>AI Assistant is online and ready to help</span>
-        </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }
