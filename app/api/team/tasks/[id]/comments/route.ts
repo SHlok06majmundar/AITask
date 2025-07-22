@@ -3,15 +3,16 @@ import { auth } from "@clerk/nextjs/server"
 import { getDatabase } from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const db = await getDatabase()
-    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(params.id) })
+    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(id) })
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
@@ -41,7 +42,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     const result = await db.collection("team_tasks").updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       {
         $push: { comments: newComment },
         $set: { updatedAt: new Date() },
@@ -59,7 +60,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         type: "task_comment",
         title: "New Comment",
         message: `${newComment.userName} commented on: ${task.title}`,
-        taskId: params.id,
+        taskId: id,
         fromUserId: userId,
         read: false,
         createdAt: new Date(),
@@ -73,7 +74,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         type: "task_comment",
         title: "New Comment",
         message: `${newComment.userName} commented on: ${task.title}`,
-        taskId: params.id,
+        taskId: id,
         fromUserId: userId,
         read: false,
         createdAt: new Date(),
@@ -84,7 +85,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     await db.collection("activities").insertOne({
       userId,
       action: "comment_added",
-      taskId: params.id,
+      taskId: id,
       taskTitle: task.title,
       details: { comment: comment.trim() },
       timestamp: new Date(),

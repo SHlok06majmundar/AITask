@@ -3,19 +3,20 @@ import { auth } from "@clerk/nextjs/server"
 import { getDatabase } from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const { title, description, priority, status, assignee } = body
 
     const db = await getDatabase()
     const result = await db.collection("tasks").updateOne(
-      { _id: new ObjectId(params.id), userId },
+      { _id: new ObjectId(id), userId },
       {
         $set: {
           title,
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     await db.collection("activities").insertOne({
       userId,
       action: "updated",
-      taskId: new ObjectId(params.id),
+      taskId: new ObjectId(id),
       taskTitle: title,
       timestamp: new Date(),
     })
@@ -48,27 +49,28 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const db = await getDatabase()
-    const task = await db.collection("tasks").findOne({ _id: new ObjectId(params.id), userId })
+    const task = await db.collection("tasks").findOne({ _id: new ObjectId(id), userId })
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
 
-    await db.collection("tasks").deleteOne({ _id: new ObjectId(params.id), userId })
+    await db.collection("tasks").deleteOne({ _id: new ObjectId(id), userId })
 
     // Log activity
     await db.collection("activities").insertOne({
       userId,
       action: "deleted",
-      taskId: new ObjectId(params.id),
+      taskId: new ObjectId(id),
       taskTitle: task.title,
       timestamp: new Date(),
     })

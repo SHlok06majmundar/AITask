@@ -3,15 +3,16 @@ import { auth } from "@clerk/nextjs/server"
 import { getDatabase } from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const db = await getDatabase()
-    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(params.id) })
+    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(id) })
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
@@ -29,15 +30,16 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const db = await getDatabase()
-    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(params.id) })
+    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(id) })
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
@@ -63,7 +65,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (!isAdmin) {
       // Non-admins can only update certain fields
       const allowedFields = ["status", "progress", "description"]
-      const filteredUpdate = {}
+      const filteredUpdate: any = {}
 
       allowedFields.forEach((field) => {
         if (body[field] !== undefined) {
@@ -77,7 +79,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       }
     }
 
-    const result = await db.collection("team_tasks").updateOne({ _id: new ObjectId(params.id) }, { $set: updateData })
+    const result = await db.collection("team_tasks").updateOne({ _id: new ObjectId(id) }, { $set: updateData })
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
@@ -87,7 +89,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     await db.collection("activities").insertOne({
       userId,
       action: "task_updated",
-      taskId: params.id,
+      taskId: id,
       taskTitle: task.title,
       details: updateData,
       timestamp: new Date(),
@@ -100,13 +102,14 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const db = await getDatabase()
 
     // Check if user is admin or owner
@@ -121,13 +124,13 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       )
     }
 
-    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(params.id) })
+    const task = await db.collection("team_tasks").findOne({ _id: new ObjectId(id) })
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
 
-    const result = await db.collection("team_tasks").deleteOne({ _id: new ObjectId(params.id) })
+    const result = await db.collection("team_tasks").deleteOne({ _id: new ObjectId(id) })
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
@@ -137,7 +140,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     await db.collection("activities").insertOne({
       userId,
       action: "task_deleted",
-      taskId: params.id,
+      taskId: id,
       taskTitle: task.title,
       timestamp: new Date(),
     })

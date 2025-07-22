@@ -65,17 +65,33 @@ export function TaskBoard() {
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
+      // Get the current task to preserve other fields
+      const task = tasks.find(t => t._id === taskId)
+      if (!task) return
+
+      const updateData = {
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        status: newStatus,
+        assignee: task.assignedTo,
+      }
+
       const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(updateData),
       })
 
       if (response.ok) {
         fetchTasks()
         toast.success("Task status updated")
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.error || "Failed to update task status")
       }
     } catch (error) {
+      console.error("Error updating task status:", error)
       toast.error("Failed to update task")
     }
   }
@@ -86,16 +102,27 @@ export function TaskBoard() {
       title: task.title,
       description: task.description,
       priority: task.priority,
+      status: task.status,
+      assignedTo: task.assignedTo,
       dueDate: task.dueDate,
     })
   }
 
   const saveEdit = async (taskId: string) => {
     try {
+      // Map the form data to match API expectations
+      const updateData = {
+        title: editForm.title,
+        description: editForm.description,
+        priority: editForm.priority,
+        status: editForm.status,
+        assignee: editForm.assignedTo, // Map assignedTo to assignee for API
+      }
+
       const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(updateData),
       })
 
       if (response.ok) {
@@ -103,8 +130,12 @@ export function TaskBoard() {
         setEditForm({})
         fetchTasks()
         toast.success("Task updated successfully")
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.error || "Failed to update task")
       }
     } catch (error) {
+      console.error("Error updating task:", error)
       toast.error("Failed to update task")
     }
   }
@@ -189,12 +220,25 @@ export function TaskBoard() {
                 onValueChange={(value) => setEditForm({ ...editForm, priority: value as any })}
               >
                 <SelectTrigger className="w-32">
-                  <SelectValue />
+                  <SelectValue placeholder="Priority" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={editForm.status}
+                onValueChange={(value) => setEditForm({ ...editForm, status: value as any })}
+              >
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
               <Input

@@ -9,6 +9,17 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -24,6 +35,8 @@ import {
   TrendingUp,
   Shield,
   Lock,
+  Edit2,
+  Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -84,6 +97,8 @@ export function TeamTaskBoard() {
   const [loading, setLoading] = useState(true)
   const [selectedTask, setSelectedTask] = useState<TeamTask | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<TeamTask>>({})
   const [newComment, setNewComment] = useState("")
   const [timeLog, setTimeLog] = useState({ duration: "", description: "" })
 
@@ -141,6 +156,7 @@ export function TeamTaskBoard() {
   }, [])
 
   const isAdmin = currentUserRole === "admin" || currentUserRole === "owner"
+  const isOwner = currentUserRole === "owner"
 
   const createTask = async () => {
     if (!newTask.title.trim() || !newTask.assignedTo) {
@@ -279,6 +295,77 @@ export function TeamTaskBoard() {
     }
   }
 
+  const deleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/team/tasks/${taskId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        fetchTasks()
+        setSelectedTask(null)
+        toast.success("Task deleted successfully")
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Failed to delete task")
+      }
+    } catch (error) {
+      console.error("Error deleting task:", error)
+      toast.error("Failed to delete task")
+    }
+  }
+
+  const startEditing = (task: TeamTask) => {
+    setEditingTask(task._id)
+    setEditForm({
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      status: task.status,
+      assignedTo: task.assignedTo,
+      dueDate: task.dueDate,
+      tags: task.tags,
+    })
+  }
+
+  const saveEdit = async (taskId: string) => {
+    try {
+      const updateData = {
+        title: editForm.title,
+        description: editForm.description,
+        priority: editForm.priority,
+        status: editForm.status,
+        assignedTo: editForm.assignedTo,
+        dueDate: editForm.dueDate,
+        tags: editForm.tags,
+      }
+
+      const response = await fetch(`/api/team/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
+      })
+
+      if (response.ok) {
+        setEditingTask(null)
+        setEditForm({})
+        fetchTasks()
+        toast.success("Task updated successfully")
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.error || "Failed to update task")
+      }
+    } catch (error) {
+      console.error("Error updating task:", error)
+      toast.error("Failed to update task")
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingTask(null)
+    setEditForm({})
+  }
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "urgent":
@@ -323,69 +410,169 @@ export function TeamTaskBoard() {
   const completedTasks = tasks.filter((task) => task.status === "completed")
 
   const TaskCard = ({ task }: { task: TeamTask }) => (
-    <Card className="mb-4 hover:shadow-md transition-all cursor-pointer" onClick={() => setSelectedTask(task)}>
+    <Card className="mb-4 hover:shadow-md transition-all">
       <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-sm line-clamp-2">{task.title}</h3>
-          <div className="flex gap-1">
-            <Badge className={getPriorityColor(task.priority)} variant="secondary">
-              {task.priority}
-            </Badge>
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
-
-        <div className="space-y-2 mb-3">
-          <div className="flex items-center justify-between text-xs">
-            <span>Progress</span>
-            <span>{task.progress}%</span>
-          </div>
-          <Progress value={task.progress} className="h-2" />
-        </div>
-
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={task.assignedToImage || "/placeholder.svg"} />
-              <AvatarFallback>{task.assignedToName.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <span className="text-xs">{task.assignedToName}</span>
-          </div>
-
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <MessageSquare className="h-3 w-3" />
-            <span>{task.comments.length}</span>
-          </div>
-        </div>
-
-        {task.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {task.tags.slice(0, 3).map((tag, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {task.tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{task.tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span>{task.timeTracking.actual}h logged</span>
-          </div>
-          {task.dueDate && (
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+        {editingTask === task._id ? (
+          <div className="space-y-3">
+            <Input
+              value={editForm.title || ""}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+              placeholder="Task title"
+            />
+            <Textarea
+              value={editForm.description || ""}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              placeholder="Task description"
+              rows={3}
+            />
+            <div className="flex gap-2">
+              <Select
+                value={editForm.priority}
+                onValueChange={(value) => setEditForm({ ...editForm, priority: value as any })}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={editForm.status}
+                onValueChange={(value) => setEditForm({ ...editForm, status: value as any })}
+              >
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="review">Review</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={editForm.dueDate || ""}
+                onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                className="w-40"
+              />
             </div>
-          )}
-        </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => saveEdit(task._id)}>
+                Save
+              </Button>
+              <Button size="sm" variant="outline" onClick={cancelEdit}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-between items-start mb-2">
+              <h3 
+                className="font-semibold text-sm line-clamp-2 cursor-pointer flex-1" 
+                onClick={() => setSelectedTask(task)}
+              >
+                {task.title}
+              </h3>
+              <div className="flex gap-1 items-center">
+                <Badge className={getPriorityColor(task.priority)} variant="secondary">
+                  {task.priority}
+                </Badge>
+                {isOwner && (
+                  <div className="flex gap-1 ml-2">
+                    <Button size="sm" variant="ghost" onClick={(e) => {
+                      e.stopPropagation()
+                      startEditing(task)
+                    }} className="h-6 w-6 p-0">
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" onClick={(e) => e.stopPropagation()} className="h-6 w-6 p-0 text-red-600 hover:text-red-700">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{task.title}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteTask(task._id)} className="bg-red-600 hover:bg-red-700">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground mb-3 line-clamp-2 cursor-pointer" onClick={() => setSelectedTask(task)}>
+              {task.description}
+            </p>
+
+            <div className="space-y-2 mb-3" onClick={() => setSelectedTask(task)}>
+              <div className="flex items-center justify-between text-xs">
+                <span>Progress</span>
+                <span>{task.progress}%</span>
+              </div>
+              <Progress value={task.progress} className="h-2" />
+            </div>
+
+            <div className="flex items-center justify-between mb-3" onClick={() => setSelectedTask(task)}>
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={task.assignedToImage || "/placeholder.svg"} />
+                  <AvatarFallback>{task.assignedToName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <span className="text-xs">{task.assignedToName}</span>
+              </div>
+
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MessageSquare className="h-3 w-3" />
+                <span>{task.comments.length}</span>
+              </div>
+            </div>
+
+            {task.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2" onClick={() => setSelectedTask(task)}>
+                {task.tags.slice(0, 3).map((tag, index) => (
+                  <Badge key={index} variant="outline" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+                {task.tags.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{task.tags.length - 3}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground" onClick={() => setSelectedTask(task)}>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>{task.timeTracking.actual}h logged</span>
+              </div>
+              {task.dueDate && (
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -606,14 +793,40 @@ export function TeamTaskBoard() {
         <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                {selectedTask.title}
-                {!isAdmin && (
-                  <Badge variant="outline" className="ml-2">
-                    <Lock className="h-3 w-3 mr-1" />
-                    View/Edit Only
-                  </Badge>
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  {selectedTask.title}
+                  {!isAdmin && (
+                    <Badge variant="outline" className="ml-2">
+                      <Lock className="h-3 w-3 mr-1" />
+                      View/Edit Only
+                    </Badge>
+                  )}
+                </div>
+                {isOwner && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Task
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{selectedTask.title}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteTask(selectedTask._id)} className="bg-red-600 hover:bg-red-700">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </DialogTitle>
             </DialogHeader>
