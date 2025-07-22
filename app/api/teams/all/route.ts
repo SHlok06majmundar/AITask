@@ -11,39 +11,35 @@ export async function GET() {
 
     const db = await getDatabase()
 
-    // Get all teams with member counts
-    const teams = await db
+    // Get all teams by aggregating team members
+    const teamsAggregation = await db
       .collection("team_members")
       .aggregate([
         {
           $group: {
             _id: "$teamId",
             memberCount: { $sum: 1 },
-            members: { $push: "$$ROOT" },
-          },
-        },
-        {
-          $lookup: {
-            from: "profiles",
-            localField: "_id",
-            foreignField: "userId",
-            as: "owner",
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            name: {
-              $concat: [{ $arrayElemAt: ["$owner.firstName", 0] }, "'s Team"],
-            },
-            description: "Collaborative workspace for team productivity",
-            ownerId: "$_id",
-            memberCount: 1,
-            createdAt: { $arrayElemAt: ["$members.joinedAt", 0] },
+            teamOwnerId: { $first: "$teamOwnerId" },
+            createdAt: { $min: "$joinedAt" },
           },
         },
       ])
       .toArray()
+
+    // Get team owner details for each team
+    const teams = await Promise.all(
+      teamsAggregation.map(async (team) => {
+        const owner = await db.collection("profiles").findOne({ userId: team.teamOwnerId })
+        return {
+          _id: team._id,
+          name: owner ? `${owner.firstName}'s Team` : "Unknown Team",
+          description: `A collaborative team with ${team.memberCount} members`,
+          ownerId: team.teamOwnerId,
+          memberCount: team.memberCount,
+          createdAt: team.createdAt,
+        }
+      }),
+    )
 
     return NextResponse.json(teams)
   } catch (error) {

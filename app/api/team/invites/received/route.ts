@@ -12,13 +12,9 @@ export async function GET() {
     const db = await getDatabase()
 
     // Get invitations received by current user
-    const receivedInvites = await db
-      .collection("team_invites")
-      .find({ toUserId: userId })
-      .sort({ invitedAt: -1 })
-      .toArray()
+    const invites = await db.collection("team_invites").find({ toUserId: userId }).sort({ invitedAt: -1 }).toArray()
 
-    return NextResponse.json(receivedInvites)
+    return NextResponse.json(invites)
   } catch (error) {
     console.error("Error fetching received invites:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

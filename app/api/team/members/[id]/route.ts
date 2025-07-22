@@ -13,24 +13,24 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     const db = await getDatabase()
     const memberId = params.id
 
-    // Find the member to be removed
+    // Find the team member
     const member = await db.collection("team_members").findOne({
       _id: new ObjectId(memberId),
     })
 
     if (!member) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 })
+      return NextResponse.json({ error: "Team member not found" }, { status: 404 })
     }
 
     // Check if current user has permission to remove this member
-    // (For now, anyone can remove members from their team)
-    const result = await db.collection("team_members").deleteOne({
+    if (member.teamOwnerId !== userId && member.teamId !== userId) {
+      return NextResponse.json({ error: "You don't have permission to remove this member" }, { status: 403 })
+    }
+
+    // Remove team member
+    await db.collection("team_members").deleteOne({
       _id: new ObjectId(memberId),
     })
-
-    if (result.deletedCount === 0) {
-      return NextResponse.json({ error: "Failed to remove member" }, { status: 400 })
-    }
 
     // Create notification for removed member
     await db.collection("notifications").insertOne({

@@ -13,13 +13,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const db = await getDatabase()
     const inviteId = params.id
 
-    // Find and update the invitation
-    const result = await db.collection("team_invites").updateOne(
-      {
-        _id: new ObjectId(inviteId),
-        fromUserId: userId,
-        status: "pending",
-      },
+    // Find the invitation
+    const invite = await db.collection("team_invites").findOne({
+      _id: new ObjectId(inviteId),
+      fromUserId: userId,
+      status: "pending",
+    })
+
+    if (!invite) {
+      return NextResponse.json({ error: "Invitation not found or cannot be cancelled" }, { status: 404 })
+    }
+
+    // Update invitation status
+    await db.collection("team_invites").updateOne(
+      { _id: new ObjectId(inviteId) },
       {
         $set: {
           status: "cancelled",
@@ -28,9 +35,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
       },
     )
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "Invitation not found or cannot be cancelled" }, { status: 404 })
-    }
+    // Create notification for invited user
+    await db.collection("notifications").insertOne({
+      userId: invite.toUserId,
+      type: "team_invite_cancelled",
+      title: "Invitation Cancelled",
+      message: `${invite.fromUserName} cancelled their team invitation`,
+      read: false,
+      createdAt: new Date().toISOString(),
+    })
 
     return NextResponse.json({ success: true, message: "Invitation cancelled" })
   } catch (error) {
