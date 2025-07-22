@@ -1,26 +1,19 @@
 "use client"
 
-import { useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
+import { useEffect } from "react"
 
 export function UserSync() {
   const { user, isLoaded } = useUser()
 
   useEffect(() => {
-    const syncUser = async () => {
-      if (isLoaded && user) {
-        try {
-          await fetch("/api/users/sync", {
-            method: "POST",
-          })
-        } catch (error) {
-          console.error("Error syncing user:", error)
-        }
-      }
+    if (isLoaded && user) {
+      // Sync user data with our database
+      fetch("/api/users/sync", {
+        method: "POST",
+      }).catch(console.error)
     }
-
-    syncUser()
-  }, [user, isLoaded])
+  }, [isLoaded, user])
 
   return null
 }

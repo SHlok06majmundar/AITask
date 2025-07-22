@@ -13,31 +13,42 @@ export async function POST() {
 
     const db = await getDatabase()
 
-    // Check if user already exists in profiles
+    // Check if user profile already exists
     const existingProfile = await db.collection("profiles").findOne({ userId })
 
-    const profileData = {
-      userId,
-      email: user.emailAddresses[0]?.emailAddress || "",
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      fullName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
-      imageUrl: user.imageUrl || "",
-      createdAt: existingProfile?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-
-    if (existingProfile) {
-      // Update existing profile
-      await db.collection("profiles").updateOne({ userId }, { $set: profileData })
-    } else {
+    if (!existingProfile) {
       // Create new profile
-      await db.collection("profiles").insertOne(profileData)
+      const profile = {
+        userId,
+        email: user.emailAddresses[0]?.emailAddress || "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        imageUrl: user.imageUrl || "/placeholder.svg",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      await db.collection("profiles").insertOne(profile)
+      return NextResponse.json({ message: "Profile created", profile })
     }
 
-    return NextResponse.json({ success: true, message: "Profile synced successfully" })
+    // Update existing profile
+    await db.collection("profiles").updateOne(
+      { userId },
+      {
+        $set: {
+          email: user.emailAddresses[0]?.emailAddress || existingProfile.email,
+          firstName: user.firstName || existingProfile.firstName,
+          lastName: user.lastName || existingProfile.lastName,
+          imageUrl: user.imageUrl || existingProfile.imageUrl,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    )
+
+    return NextResponse.json({ message: "Profile updated" })
   } catch (error) {
-    console.error("Error syncing user profile:", error)
+    console.error("Error syncing user:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

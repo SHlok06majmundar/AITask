@@ -10,8 +10,8 @@ import { UserSync } from "@/components/user-sync"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SyncSphere - Team Task Management",
-  description: "Professional team collaboration and task management platform",
+  title: "SyncSphere - Team Collaboration Platform",
+  description: "Professional team management and collaboration platform",
     generator: 'v0.dev'
 }
 
