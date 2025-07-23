@@ -25,24 +25,24 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300",
-        collapsed ? "w-16" : "w-64",
+        "flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300",
+        collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         {!collapsed && (
           <div className="flex items-center space-x-2">
-            <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+            <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex-shrink-0">
               <Target className="h-6 w-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">SyncSphere</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Task Management</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">SyncSphere</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Task Management</p>
             </div>
           </div>
         )}
-        <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)} className="p-2">
+        <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)} className="p-2 flex-shrink-0">
           {collapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
         </Button>
       </div>
@@ -62,8 +62,8 @@ export function Sidebar() {
                     isActive && "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300",
                   )}
                 >
-                  <item.icon className={cn("h-4 w-4", collapsed ? "" : "mr-3")} />
-                  {!collapsed && <span>{item.name}</span>}
+                  <item.icon className={cn("h-4 w-4 flex-shrink-0", collapsed ? "" : "mr-3")} />
+                  {!collapsed && <span className="truncate">{item.name}</span>}
                 </Button>
               </Link>
             )
