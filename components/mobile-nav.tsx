@@ -5,8 +5,9 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { 
   Home, 
   CheckSquare, 
@@ -47,6 +48,14 @@ export function MobileNav() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-64">
+          {/* Hidden accessibility elements */}
+          <VisuallyHidden>
+            <SheetTitle>Navigation Menu</SheetTitle>
+            <SheetDescription>
+              Navigate through the application using the menu items below
+            </SheetDescription>
+          </VisuallyHidden>
+          
           <div className="flex h-full flex-col">
             {/* Header */}
             <div className="flex items-center gap-2 border-b p-4">

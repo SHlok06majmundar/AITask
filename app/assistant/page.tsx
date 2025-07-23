@@ -171,52 +171,63 @@ How can I help you be more productive today?`,
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <DashboardHeader />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
-          <div className="container mx-auto px-6 py-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Productivity Assistant</h1>
-              <p className="text-gray-600 dark:text-gray-400">
+          <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 max-w-full">
+            <div className="mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 break-words">Productivity Assistant</h1>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                 Your intelligent productivity companion for better task management
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               {/* Chat Interface */}
-              <div className="lg:col-span-2">
-                <Tabs defaultValue="chat" className="space-y-6">
+              <div className="xl:col-span-2 min-w-0">
+                <Tabs defaultValue="chat" className="space-y-4 sm:space-y-6">
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="chat">Assistant Chat</TabsTrigger>
-                    <TabsTrigger value="create">Smart Task Creator</TabsTrigger>
+                    <TabsTrigger value="chat" className="text-xs sm:text-sm">
+                      <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Assistant Chat</span>
+                      <span className="sm:hidden">Chat</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="create" className="text-xs sm:text-sm">
+                      <Zap className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Smart Task Creator</span>
+                      <span className="sm:hidden">Create</span>
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="chat">
-                    <Card className="h-[600px] flex flex-col">
-                      <CardHeader>
-                        <CardTitle className="flex items-center space-x-2">
-                          <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                            <MessageCircle className="h-5 w-5 text-white" />
+                    <Card className="h-[500px] sm:h-[600px] flex flex-col">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                          <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                           </div>
                           <span>Productivity Chat</span>
-                          <Badge variant="secondary" className="ml-auto">
+                          <Badge variant="secondary" className="ml-auto text-xs">
                             <Target className="h-3 w-3 mr-1" />
-                            Smart Assistant
+                            <span className="hidden sm:inline">Smart Assistant</span>
+                            <span className="sm:hidden">AI</span>
                           </Badge>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="flex-1 flex flex-col p-0">
-                        <ScrollArea className="flex-1 p-4">
-                          <div className="space-y-4">
+                        <ScrollArea className="flex-1 p-3 sm:p-4">
+                          <div className="space-y-3 sm:space-y-4">
                             {messages.map((message) => (
                               <div
                                 key={message.id}
                                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                               >
                                 <div
-                                  className={`flex items-start space-x-3 max-w-[80%] ${
+                                  className={`flex items-start space-x-2 sm:space-x-3 max-w-[85%] sm:max-w-[80%] ${
                                     message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
                                   }`}
                                 >
@@ -239,21 +250,21 @@ How can I help you be more productive today?`,
                             ))}
                             {isLoading && (
                               <div className="flex justify-start">
-                                <div className="flex items-start space-x-3">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback className="text-sm">
-                                      <MessageCircle className="h-4 w-4" />
+                                <div className="flex items-start space-x-2 sm:space-x-3">
+                                  <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
+                                    <AvatarFallback className="text-xs sm:text-sm">
+                                      <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                                     </AvatarFallback>
                                   </Avatar>
-                                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 sm:p-3">
                                     <div className="flex space-x-1">
-                                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce" />
                                       <div
-                                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"
                                         style={{ animationDelay: "0.1s" }}
                                       />
                                       <div
-                                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"
                                         style={{ animationDelay: "0.2s" }}
                                       />
                                     </div>
@@ -264,17 +275,17 @@ How can I help you be more productive today?`,
                           </div>
                         </ScrollArea>
 
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700">
                           <form onSubmit={handleSendMessage} className="flex space-x-2">
                             <Input
                               value={input}
                               onChange={(e) => setInput(e.target.value)}
-                              placeholder="Ask me anything about productivity, tasks, or team management..."
+                              placeholder="Ask me anything about productivity..."
                               disabled={isLoading}
-                              className="flex-1"
+                              className="flex-1 text-sm"
                             />
-                            <Button type="submit" disabled={isLoading || !input.trim()}>
-                              <Send className="h-4 w-4" />
+                            <Button type="submit" disabled={isLoading || !input.trim()} size="sm" className="px-3">
+                              <Send className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </form>
                         </div>
@@ -284,9 +295,9 @@ How can I help you be more productive today?`,
 
                   <TabsContent value="create">
                     <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center space-x-2">
-                          <MessageSquare className="h-5 w-5" />
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                          <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" />
                           <span>Smart Task Creator</span>
                         </CardTitle>
                         <CardDescription>
@@ -311,12 +322,12 @@ How can I help you be more productive today?`,
               </div>
 
               {/* Insights & Quick Actions */}
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6 min-w-0">
                 {/* Quick Actions */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                    <CardDescription>Get instant productivity assistance</CardDescription>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Get instant productivity assistance</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -325,7 +336,7 @@ How can I help you be more productive today?`,
                           key={index}
                           variant="outline"
                           size="sm"
-                          className="w-full justify-start h-auto p-3 text-left bg-transparent"
+                          className="w-full justify-start h-auto p-2 sm:p-3 text-left bg-transparent text-xs sm:text-sm"
                           onClick={() => handleQuickAction(action.action)}
                         >
                           <action.icon className="h-4 w-4 mr-3 flex-shrink-0" />

@@ -346,60 +346,75 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <DashboardHeader />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
-          <div className="container mx-auto px-6 py-8">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Team Management</h1>
-                <p className="text-gray-600 dark:text-gray-400">Discover, invite, and collaborate with team members</p>
+          <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 max-w-full">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">Team Management</h1>
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">Discover, invite, and collaborate with team members</p>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <Badge variant="outline" className="flex items-center gap-1 sm:gap-2 text-xs">
                   {getRoleIcon(currentUserRole)}
-                  {currentUserRole}
+                  <span className="truncate">{currentUserRole}</span>
                 </Badge>
-                <Badge variant="outline" className="text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  Live Updates
+                <Badge variant="outline" className="text-green-600 text-xs">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1 sm:mr-2"></div>
+                  <span className="hidden sm:inline">Live Updates</span>
+                  <span className="sm:hidden">Live</span>
                 </Badge>
               </div>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="discover" className="flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  Discover ({filteredUsers.length})
-                </TabsTrigger>
-                <TabsTrigger value="team" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  My Team ({teamMembers.length})
-                </TabsTrigger>
-                <TabsTrigger value="sent" className="flex items-center gap-2">
-                  <Send className="h-4 w-4" />
-                  Sent ({sentInvites.length})
-                </TabsTrigger>
-                <TabsTrigger value="received" className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Received ({receivedInvites.length})
-                </TabsTrigger>
-                <TabsTrigger value="tasks" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Team Tasks
-                </TabsTrigger>
-                <TabsTrigger value="overview" className="flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Overview
-                </TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto">
+                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 min-w-max">
+                  <TabsTrigger value="discover" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                    <Search className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Discover</span>
+                    <span className="sm:hidden">Find</span>
+                    <span className="hidden lg:inline">({filteredUsers.length})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="team" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                    <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">My Team</span>
+                    <span className="sm:hidden">Team</span>
+                    <span className="hidden lg:inline">({teamMembers.length})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="sent" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                    <Send className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Sent</span>
+                    <span className="sm:hidden">Out</span>
+                    <span className="hidden lg:inline">({sentInvites.length})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="received" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                    <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Received</span>
+                    <span className="sm:hidden">In</span>
+                    <span className="hidden lg:inline">({receivedInvites.length})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="tasks" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                    <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Team Tasks</span>
+                    <span className="sm:hidden">Tasks</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                    <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Overview</span>
+                    <span className="sm:hidden">Info</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               {/* Discover Users Tab */}
-              <TabsContent value="discover" className="space-y-4">
-                <div className="flex items-center gap-4">
+              <TabsContent value="discover" className="space-y-4 sm:space-y-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -409,45 +424,47 @@ export default function TeamPage() {
                       className="pl-10"
                     />
                   </div>
-                  <Badge variant="outline">{filteredUsers.length} users found</Badge>
+                  <Badge variant="outline" className="text-xs sm:text-sm self-start sm:self-auto">
+                    {filteredUsers.length} users found
+                  </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                   {filteredUsers.map((user) => (
                     <Card key={user._id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
+                      <CardContent className="p-3 sm:p-4">
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="relative">
-                            <Avatar className="h-12 w-12">
+                          <div className="relative flex-shrink-0">
+                            <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                               <AvatarImage src={user.imageUrl || "/placeholder.svg"} />
-                              <AvatarFallback>
+                              <AvatarFallback className="text-sm">
                                 {user.firstName.charAt(0)}
                                 {user.lastName.charAt(0)}
                               </AvatarFallback>
                             </Avatar>
                             {user.isOnline && (
-                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                              <div className="absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded-full border-2 border-white"></div>
                             )}
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm sm:text-base truncate">
                               {user.firstName} {user.lastName}
                             </h3>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.email}</p>
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-muted-foreground mb-3 gap-2">
                           <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">Joined {new Date(user.createdAt).toLocaleDateString()}</span>
                           </div>
                           {user.isOnline ? (
-                            <Badge variant="outline" className="text-green-600">
+                            <Badge variant="outline" className="text-green-600 text-xs">
                               Online
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-gray-600">
+                            <Badge variant="outline" className="text-gray-600 text-xs">
                               Offline
                             </Badge>
                           )}

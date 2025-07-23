@@ -172,55 +172,60 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <DashboardHeader />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
-          <div className="container mx-auto px-6 py-8">
+          <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 max-w-full">
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm" onClick={() => router.back()}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+              <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+                <Button variant="ghost" size="sm" onClick={() => router.back()} className="flex-shrink-0">
+                  <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Back</span>
                 </Button>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Analytics</h1>
-                  <p className="text-gray-600 dark:text-gray-400">Track your productivity and team performance</p>
+                <div className="min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">Analytics</h1>
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">Track your productivity and team performance</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Badge variant="outline" className="text-green-600 border-green-600">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+                <Badge variant="outline" className="text-green-600 border-green-600 text-xs sm:text-sm">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
                   Live Data
                 </Badge>
-                <Badge variant="secondary">Last updated: {lastUpdated.toLocaleTimeString()}</Badge>
-                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                  Refresh
+                <Badge variant="secondary" className="text-xs sm:text-sm truncate">
+                  <span className="hidden sm:inline">Last updated: </span>
+                  {lastUpdated.toLocaleTimeString()}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="w-full sm:w-auto">
+                  <RefreshCw className={`h-4 w-4 mr-1 sm:mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                  <span className="text-xs sm:text-sm">Refresh</span>
                 </Button>
               </div>
             </div>
 
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Productivity Score</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Productivity Score</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                         {analyticsData.productivity.score}%
                       </p>
                       <div className="flex items-center mt-2">
                         {analyticsData.productivity.trend > 0 ? (
-                          <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                          <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 mr-1" />
                         ) : (
-                          <TrendingDown className="h-4 w-4 text-red-500 mr-1" />
+                          <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 mr-1" />
                         )}
                         <span
-                          className={`text-sm ${
+                          className={`text-xs sm:text-sm ${
                             analyticsData.productivity.trend > 0 ? "text-green-600" : "text-red-600"
                           }`}
                         >
@@ -228,41 +233,41 @@ export default function AnalyticsPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                      <Target className="h-6 w-6 text-blue-600" />
+                    <div className="p-2 sm:p-3 bg-blue-100 dark:bg-blue-900 rounded-full flex-shrink-0">
+                      <Target className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Tasks Completed</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Tasks Completed</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                         {analyticsData.tasks.completed}
                       </p>
-                      <p className="text-sm text-gray-500 mt-2">
+                      <p className="text-xs sm:text-sm text-gray-500 mt-2">
                         {analyticsData.tasks.completionRate}% completion rate
                       </p>
                     </div>
-                    <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    <div className="p-2 sm:p-3 bg-green-100 dark:bg-green-900 rounded-full flex-shrink-0">
+                      <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Team Members</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Team Members</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                         {analyticsData.team.totalMembers}
                       </p>
-                      <p className="text-sm text-gray-500 mt-2">{analyticsData.team.activeMembers} active today</p>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-2">{analyticsData.team.activeMembers} active today</p>
                     </div>
                     <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
                       <Users className="h-6 w-6 text-purple-600" />
